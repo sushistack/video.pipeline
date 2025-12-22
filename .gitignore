@@ -1,0 +1,105 @@
+# ============================
+# Python
+# ============================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ============================
+# Virtual Environments
+# ============================
+.venv/
+venv/
+ENV/
+env/
+worker/.venv/
+
+# ============================
+# IDE / Editor
+# ============================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================
+# Environment Variables
+# ============================
+.env
+.env.local
+.env.*.local
+
+# ============================
+# Logs & Temp Files
+# ============================
+*.log
+logs/
+tmp/
+temp/
+
+# ============================
+# Project Specific
+# ============================
+# Generated outputs (optional: remove if you want to track)
+outputs/
+materials/audios/outputs/
+
+# Vendor submodules (large models)
+worker/vendor/GPT-SoVITS/GPT_SoVITS/pretrained_models/
+worker/vendor/GPT-SoVITS/logs/
+
+# Sudachi dictionary cache
+*.sudachi/
+
+# ============================
+# Jupyter / IPython
+# ============================
+.ipynb_checkpoints/
+*.ipynb
+
+# ============================
+# Testing / Coverage
+# ============================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ============================
+# mypy / type checking
+# ============================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ============================
+# UV / uv.lock (optional)
+# ============================
+# uv.lock
+
+# ============================
+# macOS
+# ============================
+.DS_Store
+.AppleDouble
+.LSOverride

@@ -1,0 +1,11 @@
+# AI Model Configuration
+gemini:
+  model_id: "gemini-2.0-flash-exp"
+  # Optional: Temperature, etc.
+  temperature: 0.7
+
+# TTS Configuration (Future use)
+tts:
+  device: "mps" # cpu, cuda, mps
+  gpt_model: "s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"
+  sovits_model: "s2G488k.pth"

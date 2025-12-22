@@ -1,0 +1,3 @@
+[submodule "worker/vendor/GPT-SoVITS"]
+	path = worker/vendor/GPT-SoVITS
+	url = https://github.com/RVC-Boss/GPT-SoVITS

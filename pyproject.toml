@@ -1,0 +1,23 @@
+[project]
+name = "video-pipeline"
+version = "0.1.0"
+description = "High-performance multilingual video automation pipeline using ROCM and GPT-SoVITS."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "taskiq>=0.11.0",
+    # "taskiq-sqlite>=0.1.0", # Removed: package not found
+    "watchdog>=4.0.0",
+    "pydantic>=2.0.0",
+    "rich>=13.0.0",
+    "tenacity>=8.0.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
