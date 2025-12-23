@@ -17,10 +17,10 @@ class Transcriber:
         if self.config_file.exists():
             with open(self.config_file, "r") as f:
                 self.config = yaml.safe_load(f)
-                self.model_name = self.config.get("gemini", {}).get("model_id", "gemini-2.0-flash-exp")
+                self.model_name = self.config.get("gemini", {}).get("model_id", "gemini-2.5-flash")
                 print(f"[*] Loaded config from {config_path}")
         else:
-            self.model_name = os.getenv("GEMINI_MODEL_ID", "gemini-2.0-flash-exp")
+            self.model_name = os.getenv("GEMINI_MODEL_ID", "gemini-2.5-flash")
             print(f"[!] Config file not found, using default/env: {self.model_name}")
 
         self.api_key = os.getenv("GEMINI_API_KEY")

@@ -30,7 +30,7 @@ class CaptionItem(typing.TypedDict):
     kanjis: list[KanjiInfo]
 
 class CaptionGenerator:
-    def __init__(self, config_path="config.yaml"):
+    def __init__(self, config_path="config.yaml", model_name: typing.Optional[str] = None):
         base_dir = Path(__file__).resolve().parent.parent
         self.config_file = base_dir / config_path
         
@@ -38,9 +38,12 @@ class CaptionGenerator:
         if self.config_file.exists():
             with open(self.config_file, "r") as f:
                 self.config = yaml.safe_load(f)
-                self.model_name = self.config.get("gemini", {}).get("model_id", "gemini-2.0-flash-exp")
+                config_model = self.config.get("gemini", {}).get("model_id", "gemini-2.5-flash")
         else:
-            self.model_name = "gemini-2.0-flash-exp"
+            config_model = "gemini-2.5-flash"
+            
+        # Priority: Argument > Config > Default
+        self.model_name = model_name if model_name else config_model
 
         self.api_key = os.getenv("GEMINI_API_KEY")
         if not self.api_key:
@@ -61,8 +64,14 @@ class CaptionGenerator:
         print(f"[*] CaptionGenerator initialized with {self.model_name}")
 
     def generate(self, audio_path: Path, output_dir: Path, target_languages: list[str] = ["ja", "en", "ko"], generate_json: bool = True, speaker_count: typing.Optional[int] = None):
-        output_dir.mkdir(parents=True, exist_ok=True)
         base_name = audio_path.stem
+        
+        # New Structure: output_dir / {base_name} / subtitles / {lang}.srt
+        project_dir = output_dir / base_name
+        subtitle_dir = project_dir / "subtitles"
+        subtitle_dir.mkdir(parents=True, exist_ok=True)
+        
+        print(f"[*] Project Directory: {project_dir}")
 
         # STEP 1: Generate Base Japanese Captions (Audio -> Text)
         print("[-] Step 1: Generating Base Japanese Captions...")
@@ -70,7 +79,7 @@ class CaptionGenerator:
         
         # Save JA SRT immediately
         if "ja" in target_languages:
-            self._save_srt(captions, output_dir / f"{base_name}.ja.srt", "ja")
+            self._save_srt(captions, subtitle_dir / "ja.srt", "ja")
 
         # STEP 2: Translation (Text -> Text)
         if "en" in target_languages or "ko" in target_languages:
@@ -79,9 +88,9 @@ class CaptionGenerator:
             
             # Save Translated SRTs
             if "en" in target_languages:
-                self._save_srt(captions, output_dir / f"{base_name}.en.srt", "en")
+                self._save_srt(captions, subtitle_dir / "en.srt", "en")
             if "ko" in target_languages:
-                self._save_srt(captions, output_dir / f"{base_name}.ko.srt", "ko")
+                self._save_srt(captions, subtitle_dir / "ko.srt", "ko")
 
         # STEP 3: Yomigana Extraction (Text -> Meta)
         # Only if JA is requested AND Json is generating
@@ -90,7 +99,7 @@ class CaptionGenerator:
             captions = self._add_yomigana(captions)
             
             # Save Master JSON
-            master_json_path = output_dir / f"{base_name}.json"
+            master_json_path = subtitle_dir / f"{base_name}.json"
             with open(master_json_path, "w", encoding="utf-8") as f:
                 json.dump(captions, f, indent=2, ensure_ascii=False)
             print(f"[+] Saved Master JSON: {master_json_path}")
@@ -104,7 +113,7 @@ class CaptionGenerator:
             time.sleep(1)
             myfile = genai.get_file(myfile.name)
             
-        speaker_hint = f"There are exactly {speaker_count} speakers." if speaker_count else "Identify different speakers if possible (e.g., 'Speaker 1', 'Speaker 2')."
+        speaker_hint = f"There are exactly {speaker_count} speakers." if speaker_count else "Identify different speakers if possible (e.g., 'speaker1', 'speaker2')."
 
         prompt = f"""
         Listen to the audio and transcribe the original Japanese text.
@@ -113,7 +122,7 @@ class CaptionGenerator:
         Output a JSON array of objects with these fields:
         - start (HH:MM:SS,mmm)
         - end (HH:MM:SS,mmm)
-        - speaker (string, e.g. "Speaker 1")
+        - speaker (string, e.g. "speaker1")
         - text_ja (transcription)
         
         Output ONLY the raw JSON.
@@ -207,6 +216,118 @@ class CaptionGenerator:
             content += f"{idx}\n{item['start']} --> {item['end']}\n{display_text}\n\n"
         path.write_text(content, encoding="utf-8")
         print(f"[+] Saved SRT ({lang}): {path}")
+
+    def generate_xml_scenario(self, captions: list[dict], target_lang: str) -> str:
+        """
+        Generates an XML scenario using Gemini with strict specific rules:
+        1. Transliterate English/Numbers to target language pronunciation.
+        2. Strictly NO other changes to content.
+        3. Match strict XML structure: <script><speaker_tag>Content</speaker_tag>...</script>
+        """
+        
+        # Helper to simplify input for prompt
+        minified_input = []
+        for c in captions:
+            txt = c.get("text", "")
+            spk = "unknown"
+            content = txt
+            if txt.startswith("[") and "]" in txt:
+                idx = txt.find("]")
+                spk_raw = txt[1:idx]
+                spk = "".join(x for x in spk_raw if x.isalnum()).lower()
+                content = txt[idx+1:].strip()
+                if content.startswith(":"): content = content[1:].strip()
+            minified_input.append({"tag": spk, "text": content})
+
+        # Examples of transliteration based on target lang
+        examples_prompt = ""
+        if target_lang == "ko":
+            examples_prompt = """
+            - 'AWS IAM' -> '에이더블유에스 아이엠'
+            - 'Identity and Access Management' -> '아이덴티티 앤 액세스 매니지먼트'
+            - 'Web 3.0' -> '웹 삼점영'
+            - 'AI' -> '에이아이'
+            - 'Level 1' -> '레벨 원'
+            - 'No.1' -> '넘버 원'
+            - '2시' -> '두 시'
+            - '30분' -> '삼십 분'
+            - '2025년' -> '이천이십오 년'
+            - '12월 25일' -> '십이 월 이십오 일'
+            - '3개' -> '세 개'
+            - '1,000원' -> '천 원'
+            - 'GPT-4o' -> '지피티 포 오'
+            - 'API' -> '에이피아이'
+            """
+        elif target_lang == "ja":
+            examples_prompt = """
+            - 'AWS IAM' -> 'エーダブリューエス アイアム'
+            - '123' -> 'ひゃくにじゅうさん'
+            - '今日は' -> 'きょうは'
+            - '日本' -> 'にほん'
+            - 'AI' -> 'エーアイ'
+            - '2025年' -> 'にせんにじゅうごねん'
+            - '12月25日' -> 'じゅうにがつ にじゅうごにち'
+            - '1つ' -> 'ひとつ'
+            - '3人' -> 'さんにん'
+            - '1,000円' -> 'せんえん'
+            - 'GPT-4o' -> 'ジーピーティー フォー オー'
+            - 'API' -> 'エーピーアイ'
+            - 'App' -> 'アップ'
+            """
+        else:
+             examples_prompt = "- '100' -> 'one hundred'\n- 'No.1' -> 'number one'"
+
+        # Dynamic Rules
+        preservation_rule = "2. **Preservation**: Do NOT change any other words. Keep the meaning and structure exactly identical."
+        if target_lang == "ja":
+             preservation_rule = "2. **Kanji Conversion**: Convert ALL Kanji characters to Hiragana readings. Convert English/Numbers to Katakana/Hiragana pronunciation."
+
+        prompt = f"""
+        Convert the following script into a dedicated XML format for TTS generation in '{target_lang}'.
+
+        # Input Data (JSON sequence):
+        {json.dumps(minified_input, ensure_ascii=False)}
+
+        # Output Format (XML):
+        <script>
+            <tag_name>Content</tag_name>
+            ...
+        </script>
+
+        # STRICT RULES:
+        1. **Transliteration**: Convert ALL English words and Numbers into their pronunciation in '{target_lang}'.
+           Examples:
+           {examples_prompt}
+        {preservation_rule}
+        3. **Structure**: Use the exact 'tag' provided in input as the XML tag name.
+        4. **Validation**: Output MUST be a valid XML enclosed in <script> tags.
+
+        Output ONLY the raw XML string. No markdown code blocks.
+        """
+
+        # Retry logic
+        for attempt in range(3):
+            try:
+                print(f"[-] Generating XML Scenario for {target_lang} (Attempt {attempt+1}/3)...")
+                response = self.model.generate_content(prompt)
+                
+                # Cleanup
+                result = response.text.strip()
+                if result.startswith("```xml"): result = result[6:]
+                if result.startswith("```"): result = result[3:]
+                if result.endswith("```"): result = result[:-3]
+                result = result.strip()
+                
+                # Simple validation check
+                if result.startswith("<script>") and result.endswith("</script>"):
+                    return result
+                else:
+                    print(f"[!] Invalid XML format in response. Retrying...")
+            except Exception as e:
+                print(f"[!] Error generating scenario: {e}")
+                time.sleep(1)
+        
+        raise ValueError("Failed to generate valid XML scenario after 3 attempts.")
 
 if __name__ == "__main__":
     import sys

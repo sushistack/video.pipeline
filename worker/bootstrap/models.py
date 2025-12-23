@@ -19,31 +19,48 @@ MODELS = {
     "pretrained_models/chinese-hubert-base/preprocessor_config.json": "https://huggingface.co/TencentGameMate/chinese-hubert-base/resolve/main/preprocessor_config.json",
 }
 
+PROJECT_MODELS = {
+    # V2Pro
+    "v2Pro/s2Gv2Pro.pth": "https://huggingface.co/lj1995/GPT-SoVITS/resolve/main/v2Pro/s2Gv2Pro.pth",
+    
+    # V4
+    "s1v3.ckpt": "https://huggingface.co/lj1995/GPT-SoVITS/resolve/main/s1v3.ckpt",
+    "gsv-v4-pretrained/s2Gv4.pth": "https://huggingface.co/lj1995/GPT-SoVITS/resolve/main/gsv-v4-pretrained/s2Gv4.pth",
+    "gsv-v4-pretrained/vocoder.pth": "https://huggingface.co/lj1995/GPT-SoVITS/resolve/main/gsv-v4-pretrained/vocoder.pth",
+}
+
 def download_models(vendor_dir: Path):
     """
     Downloads required pretrained models if they don't exist.
     """
     print("[*] Verifying Pretrained Models...")
     gpt_sovits_root = vendor_dir / "GPT-SoVITS"
+    project_root = vendor_dir.parent.parent # worker/vendor -> worker -> root
     
     # Ensure root exists inside vendor (should be done by git submodule)
     gpt_sovits_root.mkdir(parents=True, exist_ok=True)
-    GPT_SOVITS_SUBDIR = gpt_sovits_root / "GPT_SoVITS" # Actual code dir usually has another layer or checks paths
-
-    # NOTE: The repo structure puts pretrained_models under GPT_SoVITS/pretrained_models
-    # Let's target the correct location relative to repo root
     
+    # 1. Vendor Models (Original logic)
     for rel_path, url in MODELS.items():
-        # Adjust path: The repo usually has them in GPT_SoVITS/pretrained_models
-        # We need to check where the code expects them. 
-        # User PRD check: `GPT_SoVITS/pretrained_models`
-        
         target_path = gpt_sovits_root / "GPT_SoVITS" / rel_path
         
         if not target_path.exists():
-            print(f"    Downloading {rel_path}...")
+            print(f"    Downloading (Vendor) {rel_path}...")
             target_path.parent.mkdir(parents=True, exist_ok=True)
-            # Use curl which is standard on macOS/Linux
             run_cmd(f"curl -L -o '{str(target_path)}' '{url}'")
         else:
-            print(f"    OK: {rel_path}")
+            print(f"    OK (Vendor): {rel_path}")
+
+    # 2. Project Models (New logic)
+    models_dir = project_root / "models" / "pretrained"
+    models_dir.mkdir(parents=True, exist_ok=True)
+    
+    for rel_path, url in PROJECT_MODELS.items():
+        target_path = models_dir / rel_path
+        
+        if not target_path.exists():
+            print(f"    Downloading (Project) {rel_path}...")
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            run_cmd(f"curl -L -o '{str(target_path)}' '{url}'")
+        else:
+            print(f"    OK (Project): {rel_path}")
