@@ -42,8 +42,17 @@ def render_extract_tab(video_input_dir: Path, output_root: Path):
     # Validation
     can_generate = (audio_path is not None)
     
-    # Generate Button
-    if st.button("🚀 Start Caption Extraction", type="primary", disabled=(not can_generate)):
+    # Initialize session state for extraction status
+    if "is_extracting" not in st.session_state:
+        st.session_state.is_extracting = False
+
+    def start_extraction():
+        st.session_state.is_extracting = True
+
+    # Generate Button or Loading State
+    if st.session_state.is_extracting:
+        st.button("⏳ Extracting Captions...", type="primary", disabled=True)
+        
         log_container = st.empty()
         logs = []
         
@@ -61,18 +70,19 @@ def render_extract_tab(video_input_dir: Path, output_root: Path):
         log(f"[*] Speaker count: {parsed_speaker_count}")
         
         try:
-            # Pass selected model here
-            cg = CaptionGenerator(model_name=selected_model)
-            log(f"[*] CaptionGenerator initialized with {cg.model_name}")
-            
-            # CaptionGenerator will create {OUTPUT_ROOT}/{base_name}/subtitles/
-            cg.generate(
-                audio_path=audio_path,
-                output_dir=output_root,
-                target_languages=target_langs,
-                generate_json=gen_json,
-                speaker_count=parsed_speaker_count
-            )
+            with st.spinner("Extracting captions... This may take a while."):
+                # Pass selected model here
+                cg = CaptionGenerator(model_name=selected_model)
+                log(f"[*] CaptionGenerator initialized with {cg.model_name}")
+                
+                # CaptionGenerator will create {OUTPUT_ROOT}/{base_name}/subtitles/
+                cg.generate(
+                    audio_path=audio_path,
+                    output_dir=output_root,
+                    target_languages=target_langs,
+                    generate_json=gen_json,
+                    speaker_count=parsed_speaker_count
+                )
             
             # Success (SRT-only mode)
             log(f"[+] Extraction Done! (SRT Mode)")
@@ -82,3 +92,14 @@ def render_extract_tab(video_input_dir: Path, output_root: Path):
         except Exception as e:
             log(f"[{e}]") # Log plain error first
             st.error(f"Extraction Failed: {e}")
+        finally:
+            st.session_state.is_extracting = False
+            st.rerun()
+
+    else:
+        st.button(
+            "🚀 Start Caption Extraction", 
+            type="primary", 
+            disabled=(not can_generate),
+            on_click=start_extraction
+        )

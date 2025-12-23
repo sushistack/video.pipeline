@@ -35,17 +35,27 @@ class GPTSoVITSAdapter:
         if not self.cli_script.exists():
             raise FileNotFoundError(f"CLI script not found at {self.cli_script}")
 
-    def _map_language(self, lang_code: str) -> str:
+    def _map_language(self, lang_code: str, is_target: bool = False) -> str:
         """Maps ISO codes to GPT-SoVITS CLI Chinese keys."""
         mapping = {
             "en": "英文",
             "ja": "日文",
             "zh": "中文",
-            "ko": "韩文", 
+            "yue": "粤语",
             "mix": "多语种混合"
         }
+        
+        normalized_lang = lang_code.lower()
+
+        # Korean Special Handling
+        if normalized_lang == "ko":
+            if is_target:
+                return "多语种混合" # Target Korean -> Multilingual Mix
+            else:
+                return "韩文"     # Reference Korean -> Korean
+
         # Fallback to mapped value or return as is (if valid)
-        return mapping.get(lang_code.lower(), lang_code)
+        return mapping.get(normalized_lang, lang_code)
 
     def generate_voice(
         self, 
@@ -86,10 +96,6 @@ class GPTSoVITSAdapter:
         with tempfile.TemporaryDirectory() as temp_out_dir:
             try:
                 # Construct Command
-                logger.info(f"[*] Ref Text: {ref_text}")
-                logger.info(f"[*] Target Text: {target_text}")
-                logger.info(f"[*] Speed Factor: {speed_factor}")
-                
                 cmd = [
                     self.python_exec,
                     str(self.cli_script),
@@ -97,14 +103,12 @@ class GPTSoVITSAdapter:
                     "--sovits_model", str(sovits_model_path),
                     "--ref_audio", str(ref_audio_path),
                     "--ref_text", str(tf_ref_path),
-                    "--ref_language", self._map_language(ref_language),
+                    "--ref_language", self._map_language(ref_language, is_target=False),
                     "--target_text", str(tf_tgt_path),
-                    "--target_language", self._map_language(target_language),
+                    "--target_language", self._map_language(target_language, is_target=True),
                     "--output_path", str(temp_out_dir),
                     "--speed_factor", str(speed_factor)
                 ]
-                
-                logger.info(f"[*] Executing CLI: {' '.join(cmd)}")
                 
                 env = os.environ.copy()
                 env["PYTHONPATH"] = str(self.vendor_dir) + os.pathsep + env.get("PYTHONPATH", "")
@@ -131,7 +135,7 @@ class GPTSoVITSAdapter:
                 result = subprocess.run(
                     cmd, 
                     check=True, 
-                    capture_output=True, 
+                    # capture_output=True, # Disabled to allow real-time logging
                     text=True, 
                     cwd=self.vendor_dir,
                     env=env
@@ -140,7 +144,7 @@ class GPTSoVITSAdapter:
                 # Check for output.wav
                 generated_file = Path(temp_out_dir) / "output.wav"
                 if not generated_file.exists():
-                    raise RuntimeError(f"CLI finished but output.wav not found.\nSTDERR: {result.stderr}")
+                    raise RuntimeError(f"CLI finished but output.wav not found.")
                 
                 # Move/Convert to final destination
                 if output_path.suffix.lower() == ".mp3":
@@ -151,7 +155,7 @@ class GPTSoVITSAdapter:
                         "-codec:a", "libmp3lame", "-qscale:a", "2",
                         str(output_path)
                     ]
-                    subprocess.run(convert_cmd, check=True, capture_output=True)
+                    subprocess.run(convert_cmd, check=True) # Also disable capture for ffmpeg? Kept default (inherit) here effectively
                 else:
                     shutil.move(str(generated_file), str(output_path))
                 
@@ -161,9 +165,8 @@ class GPTSoVITSAdapter:
 
             except subprocess.CalledProcessError as e:
                 logger.error(f"[!] CLI Failed with exit code {e.returncode}")
-                logger.error(f"STDOUT: {e.stdout}")
-                logger.error(f"STDERR: {e.stderr}")
-                raise RuntimeError(f"GPT-SoVITS CLI Error: {e.stderr}") from e
+                # Logs are already printed to stdout/stderr in real-time
+                raise RuntimeError(f"GPT-SoVITS CLI Error (Exit Code {e.returncode})") from e
             finally:
                 # Cleanup Temp Text Files
                 if tf_ref_path.exists(): tf_ref_path.unlink()

@@ -2,6 +2,7 @@ import sys
 import os
 import argparse
 import shutil
+import logging
 import torchaudio
 import torch
 import soundfile as sf
@@ -111,7 +112,15 @@ def synthesize(
         print(f"Error reading target text: {e}", file=sys.stderr)
         return
 
-    print(f"Loading Models...\nGPT: {gpt_model_path}\nSoVITS: {sovits_model_path}")
+    # Configure logging
+    # Use simple config matching adapter, force=True to ensure it applies
+    logging.basicConfig(level=logging.INFO, force=True) 
+    logger = logging.getLogger("GPTSoVITS_CLI")
+
+    logger.info(f"Loading Models...\nGPT: {gpt_model_path}\nSoVITS: {sovits_model_path}")
+    logger.info(f"[*] Ref Text: {ref_text}")
+    logger.info(f"[*] Target Text: {target_text}")
+    logger.info(f"[*] Speed Factor: {speed_factor}")
 
     # Change Model Weights
     try:
@@ -184,12 +193,20 @@ def main():
 
     # Language Map
     lang_map = {
-        "zh": "中文", "en": "英文", "ja": "日文", "ko": "多语种混合", "yue": "粤语",
+        "zh": "中文", "en": "英文", "ja": "日文", "yue": "粤语",
         "auto": "多语种混合"
     }
     
-    ref_lang = lang_map.get(args.ref_language, args.ref_language)
-    target_lang = lang_map.get(args.target_language, args.target_language)
+    # Handle ko specifically (Force Korean/ko to specific internal values)
+    if args.ref_language in ["ko", "韩文"]:
+        ref_lang = "韩文"
+    else:
+        ref_lang = lang_map.get(args.ref_language, args.ref_language)
+
+    if args.target_language in ["ko", "韩文"]:
+        target_lang = "多语种混合"
+    else:
+        target_lang = lang_map.get(args.target_language, args.target_language)
 
     synthesize(
         gpt_model_path=args.gpt_model,

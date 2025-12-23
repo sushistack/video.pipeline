@@ -67,18 +67,31 @@ def render_audio_tab(output_root: Path, base_dir: Path):
         
         with cfg_col1:
             st.caption("Model Version")
-            model_version = st.selectbox("Select Version", ["V2Pro", "V4"], label_visibility="collapsed", key="model_ver_sel")
+            model_version = st.selectbox("Select Version", ["V4", "V2Pro", "V2ProPlus"], index=0, label_visibility="collapsed", key="model_ver_sel")
             
-            if model_version == "V2Pro":
-                gpt_path = base_dir / "worker/vendor/GPT-SoVITS/GPT_SoVITS/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"
-                sovits_path = base_dir / "models/pretrained/v2Pro/s2Gv2Pro.pth"
-            else: 
-                gpt_path = base_dir / "models/pretrained/s1v3.ckpt"
-                sovits_path = base_dir / "models/pretrained/gsv-v4-pretrained/s2Gv4.pth"
+            # Helper Paths
+            vendor_models = base_dir / "worker/vendor/GPT-SoVITS/GPT_SoVITS/pretrained_models"
+            local_models = base_dir / "models/pretrained"
+
+            if model_version == "V4":
+                # V4 uses s1v3 (GPT) + s2Gv4 (SoVITS)
+                gpt_path = local_models / "s1v3.ckpt" 
+                sovits_path = vendor_models / "gsv-v4-pretrained/s2Gv4.pth"
+            elif model_version == "V2Pro":
+                gpt_path = local_models / "s1v3.ckpt"
+                sovits_path = vendor_models / "v2Pro/s2Gv2Pro.pth"
+            elif model_version == "V2ProPlus":
+                gpt_path = local_models / "s1v3.ckpt"
+                sovits_path = vendor_models / "v2Pro/s2Gv2ProPlus.pth"
             
             g_ok = "✅" if gpt_path.exists() else "❌"
             s_ok = "✅" if sovits_path.exists() else "❌"
-            st.caption(f"{g_ok} GPT...{gpt_path.name[-10:]} | {s_ok} SoVITS...{sovits_path.name[-10:]}")
+            
+            # Show truncated names
+            g_name = gpt_path.name[-15:] if len(gpt_path.name) > 15 else gpt_path.name
+            s_name = sovits_path.name[-15:] if len(sovits_path.name) > 15 else sovits_path.name
+            
+            st.caption(f"{g_ok} GPT: ...{g_name} | {s_ok} SoVITS: ...{s_name}")
 
         with cfg_col2:
             st.caption("Target Languages")
@@ -88,7 +101,7 @@ def render_audio_tab(output_root: Path, base_dir: Path):
             with c_l3: gen_ja = st.checkbox("Japanese", value=True, key="aud_ja")
 
             st.caption("Speech Speed")
-            speed_factor = st.slider("Speed Factor", 0.5, 2.0, 1.0, 0.1, key="aud_speed")
+            speed_factor = st.slider("Speed Factor", 0.5, 2.0, 1.1, 0.1, key="aud_speed")
 
         target_langs = []
         if gen_en: target_langs.append("en")
