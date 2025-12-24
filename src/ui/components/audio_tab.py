@@ -328,14 +328,9 @@ def render_audio_tab(output_root: Path, base_dir: Path):
         
 
 
-        # Log Area
-        st.markdown("### Process Logs")
-        log_box = st.container(height=400)
-        with log_box:
-            # Just render the list
-            log_text = "\n".join(st.session_state["audio_logs"])
-            st.code(log_text, language="text")
-
+        # 3. Control Buttons Area
+        st.subheader("🎧 Generation Control")
+        
         if is_running:
             c1, c2 = st.columns([1, 4])
             with c1:
@@ -368,3 +363,14 @@ def render_audio_tab(output_root: Path, base_dir: Path):
                 t.start()
                 
             st.button("🎙️ Generate Audio Tracks", type="primary", disabled=not target_langs, on_click=start_thread)
+
+        st.divider()
+
+        # Log Area
+        st.markdown("### Process Logs (Newest First)")
+        log_box = st.container(height=400)
+        with log_box:
+            # Render logs in REVERSE order (Newest at top) to ensure visibility of latest
+            rev_logs = list(reversed(st.session_state["audio_logs"]))
+            log_text = "\n".join(rev_logs)
+            st.code(log_text, language="text")

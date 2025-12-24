@@ -24,6 +24,7 @@ from components.extract_tab import render_extract_tab
 from components.review_tab import render_review_tab
 from components.scenario_tab import render_scenario_tab
 from components.audio_tab import render_audio_tab
+from components.subtitle_tab import render_subtitle_tab
 
 # Page Config
 st.set_page_config(layout="wide", page_title="Video Pipeline")
@@ -33,7 +34,7 @@ st.title("🎞️ Video Pipeline Dashboard")
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 # Tabs
-t0, t1, t2, t3 = st.tabs(["📺 Extract SRT", "📝 Story Review", "🎬 Scenario Gen", "🎙️ Audio Gen"])
+t0, t1, t2, t3, t4 = st.tabs(["📺 Extract SRT", "📝 Story Review", "🎬 Scenario Gen", "🎙️ Audio Gen", "📝 Subtitle Gen"])
 
 with t0:
     render_extract_tab(VIDEO_INPUT_DIR, OUTPUT_ROOT)
@@ -46,3 +47,6 @@ with t2:
 
 with t3:
     render_audio_tab(OUTPUT_ROOT, BASE_DIR)
+
+with t4:
+    render_subtitle_tab(OUTPUT_ROOT)
