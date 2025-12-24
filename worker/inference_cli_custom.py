@@ -7,12 +7,13 @@ import torchaudio
 import torch
 import soundfile as sf
 import numpy as np
+import warnings
+import contextlib
 
-# Force soundfile backend to avoid torchcodec issues
-try:
-    torchaudio.set_audio_backend("soundfile")
-except Exception:
-    pass
+# Suppress torchaudio backend warning
+warnings.filterwarnings("ignore", category=UserWarning, module="torchaudio")
+
+import builtins
 
 # Monkey patch torchaudio.load because torchcodec is broken in this env (MPS/MacOS specific fix)
 def my_torchaudio_load(filepath, **kwargs):
@@ -52,24 +53,46 @@ if str(ERES2NET_DIR) not in sys.path:
 # 2. Import GPT-SoVITS modules
 try:
     # Model Absolute Paths for env injection (inference_webui dependencies)
-    # Point to the models inside vendor/GPT-SoVITS since we haven't moved them centrally yet
-    bert_path = VENDOR_ROOT / "GPT_SoVITS" / "pretrained_models" / "chinese-roberta-wwm-ext-large"
-    cnhubert_path = VENDOR_ROOT / "GPT_SoVITS" / "pretrained_models" / "chinese-hubert-base"
-    sv_model_path = VENDOR_ROOT / "GPT_SoVITS" / "pretrained_models" / "sv" / "pretrained_eres2netv2w24s4ep4.ckpt"
+    # Consolidated in models/pretrained/
+    PROJECT_ROOT = WORKER_ROOT.parent
+    PRETRAINED_ROOT = PROJECT_ROOT / "models" / "pretrained"
+    
+    bert_path = PRETRAINED_ROOT / "bert"
+    cnhubert_path = PRETRAINED_ROOT / "hubert"
+    sv_model_path = PRETRAINED_ROOT / "sv" / "pretrained_eres2netv2w24s4ep4.ckpt"
+    
+    v4_vocoder_path = PRETRAINED_ROOT / "gsv-v4-pretrained" / "vocoder.pth"
     
     os.environ["bert_path"] = str(bert_path)
     os.environ["cnhubert_base_path"] = str(cnhubert_path)
     os.environ["sv_model_path"] = str(sv_model_path)
+    os.environ["v4_vocoder_path"] = str(v4_vocoder_path)
     
     # Default Paths to prevent init errors
-    # Use the files we found in vendor/GPT-SoVITS/pretrained_models
-    default_gpt_path = VENDOR_ROOT / "GPT_SoVITS" / "pretrained_models" / "s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"
-    default_sovits_path = VENDOR_ROOT / "GPT_SoVITS" / "pretrained_models" / "s2G488k.pth"
+    default_gpt_path = PRETRAINED_ROOT / "v2" / "s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"
+    default_sovits_path = PRETRAINED_ROOT / "v2" / "s2G488k.pth"
     
     os.environ["gpt_path"] = str(default_gpt_path)
     os.environ["sovits_path"] = str(default_sovits_path)
     
     from tools.i18n.i18n import I18nAuto
+    # Monkey Patch SV path BEFORE importing/using inference_webui logic that relies on it
+    # inference_webui.py uses 'from sv import SV', so we must patch 'sv' module directly if available
+    
+    # 1. Patch top-level sv if accessible (due to sys.path hacks in inference_webui)
+    try:
+        import sv
+        sv.sv_path = str(sv_model_path)
+    except ImportError:
+        print("Could not import top-level 'sv' module for patching. Trying GPT_SoVITS.sv...", file=sys.stderr)
+
+    # 2. Patch GPT_SoVITS.sv (package level)
+    try:
+        import GPT_SoVITS.sv as sv_pkg
+        sv_pkg.sv_path = str(sv_model_path)
+    except ImportError:
+        pass
+    
     from GPT_SoVITS.inference_webui import change_gpt_weights, change_sovits_weights, get_tts_wav
 except ImportError as e:
     import traceback
@@ -115,12 +138,6 @@ def synthesize(
     # Configure logging
     # Use simple config matching adapter, force=True to ensure it applies
     logging.basicConfig(level=logging.INFO, force=True) 
-    logger = logging.getLogger("GPTSoVITS_CLI")
-
-    logger.info(f"Loading Models...\nGPT: {gpt_model_path}\nSoVITS: {sovits_model_path}")
-    logger.info(f"[*] Ref Text: {ref_text}")
-    logger.info(f"[*] Target Text: {target_text}")
-    logger.info(f"[*] Speed Factor: {speed_factor}")
 
     # Change Model Weights
     try:
@@ -129,12 +146,10 @@ def synthesize(
         # change_sovits_weights returns a generator in some versions, consume it.
         sovits_gen = change_sovits_weights(sovits_path=sovits_model_path)
         if hasattr(sovits_gen, '__iter__'):
-             for _ in sovits_gen: pass 
+                for _ in sovits_gen: pass 
             
     except Exception as e:
         print(f"Error loading models: {e}")
-
-    print(f"Synthesizing... (Speed: {speed_factor})")
     
     try:
         synthesis_result = get_tts_wav(
@@ -158,7 +173,6 @@ def synthesize(
             os.makedirs(output_path, exist_ok=True)
             
             sf.write(output_wav_path, last_audio_data, last_sampling_rate)
-            print(f"Audio saved to {output_wav_path}")
         else:
             print("No audio generated.")
             
@@ -176,14 +190,14 @@ def main():
     parser.add_argument("--ref_text", required=True, help="Path to the reference text file")
     parser.add_argument(
         "--ref_language", required=True, 
-        choices=["中文", "英文", "日文", "韩文", "粤语", "zh", "en", "ja", "ko", "yue"], 
+        choices=["中文", "英文", "日文", "韩文", "粤语", "zh", "en", "ja", "ko", "yue", "한국어", "영어", "일본어", "다국어 혼합"], 
         help="Language of the reference audio"
     )
     parser.add_argument("--target_text", required=True, help="Path to the target text file")
     parser.add_argument(
         "--target_language",
         required=True,
-        choices=["中文", "英文", "日文", "韩文", "粤语", "中英混合", "日英混合", "多语种混合", "zh", "en", "ja", "ko", "yue", "auto"],
+        choices=["中文", "英文", "日文", "韩文", "粤语", "中英混合", "日英混合", "多语种混合", "zh", "en", "ja", "ko", "yue", "auto", "한국어", "영어", "일본어", "다국어 혼합"],
         help="Language of the target text",
     )
     parser.add_argument("--output_path", required=True, help="Path to the output directory")
@@ -194,19 +208,13 @@ def main():
     # Language Map
     lang_map = {
         "zh": "中文", "en": "英文", "ja": "日文", "yue": "粤语",
-        "auto": "多语种混合"
+        "auto": "多语种混合",
+        "ko": "한국어" 
     }
     
-    # Handle ko specifically (Force Korean/ko to specific internal values)
-    if args.ref_language in ["ko", "韩文"]:
-        ref_lang = "韩文"
-    else:
-        ref_lang = lang_map.get(args.ref_language, args.ref_language)
-
-    if args.target_language in ["ko", "韩文"]:
-        target_lang = "多语种混合"
-    else:
-        target_lang = lang_map.get(args.target_language, args.target_language)
+    # Just pass through the args if they aren't in map (for Korean keys)
+    ref_lang = lang_map.get(args.ref_language, args.ref_language)
+    target_lang = lang_map.get(args.target_language, args.target_language)
 
     synthesize(
         gpt_model_path=args.gpt_model,

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional, Dict
 
 # Configure Logger
-logger = logging.getLogger("GPTSoVITS_Adapter")
+logger = logging.getLogger("gpt_sovits_adapter")
 logging.basicConfig(level=logging.INFO)
 
 class GPTSoVITSAdapter:
@@ -68,12 +68,17 @@ class GPTSoVITSAdapter:
         target_language: str,
         output_path: Path,
         device: str = None,
-        speed_factor: float = 1.0
+        speed_factor: float = 1.0,
+        callback = None
     ) -> Path:
         """
         Generates audio by invoking the CLI script.
         Handles temp file creation for text inputs.
         """
+        def log(msg):
+            logger.info(msg)
+            if callback: callback(msg)
+
         # Validate Inputs
         if not gpt_model_path.exists():
             raise FileNotFoundError(f"GPT Model not found: {gpt_model_path}")
@@ -118,7 +123,6 @@ class GPTSoVITSAdapter:
                 elif sys.platform == "darwin":
                     # Force CPU on macOS to avoid MPS channel limits (conv1d > 65536)
                     env["GPT_SOVITS_DEVICE"] = "cpu"
-                    logger.warning("[!] macOS detected: Forcing GPT_SOVITS_DEVICE='cpu' to avoid MPS NotSupportedErrors.")
                 
                 # Critical Fix: Enable CPU fallback for MPS operations not implemented (e.g. huge conv1d)
                 env["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
@@ -132,14 +136,31 @@ class GPTSoVITSAdapter:
                 env["bert_path"] = str(self.vendor_dir / "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large")
                 env["is_half"] = "False" # Use FP32 for CPU compatibility/safety
 
-                result = subprocess.run(
+                # Use Popen to capture stdout in real-time
+                process = subprocess.Popen(
                     cmd, 
-                    check=True, 
-                    # capture_output=True, # Disabled to allow real-time logging
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, # Merge stderr to stdout
                     text=True, 
                     cwd=self.vendor_dir,
-                    env=env
+                    env=env,
+                    bufsize=1,            # Line buffered
+                    universal_newlines=True
                 )
+                
+                # Stream logs
+                for line in process.stdout:
+                    line = line.replace("\n", "")
+                    if line.strip():
+                        # Don't double log if our logger.info already goes to stdout
+                        # But for UI callback we need it.
+                        print(line) # Ensure it hits console
+                        if callback: callback(line)
+                
+                process.wait()
+                
+                if process.returncode != 0:
+                     raise subprocess.CalledProcessError(process.returncode, cmd)
                 
                 # Check for output.wav
                 generated_file = Path(temp_out_dir) / "output.wav"
@@ -148,24 +169,25 @@ class GPTSoVITSAdapter:
                 
                 # Move/Convert to final destination
                 if output_path.suffix.lower() == ".mp3":
-                    # Convert WAV to MP3 using ffmpeg
-                    logger.info(f"[*] Converting to MP3: {output_path}")
                     convert_cmd = [
-                        "ffmpeg", "-y", "-i", str(generated_file),
+                        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(generated_file),
                         "-codec:a", "libmp3lame", "-qscale:a", "2",
                         str(output_path)
                     ]
-                    subprocess.run(convert_cmd, check=True) # Also disable capture for ffmpeg? Kept default (inherit) here effectively
+                    subprocess.run(convert_cmd, check=True)
                 else:
                     shutil.move(str(generated_file), str(output_path))
                 
-                logger.info(f"[+] Audio saved to {output_path}")
+                log("")
+                log("============================================================================")
+                log(f"[+] Audio saved to {output_path}")
+                log("============================================================================")
+                log("")
                 
                 return output_path
 
             except subprocess.CalledProcessError as e:
-                logger.error(f"[!] CLI Failed with exit code {e.returncode}")
-                # Logs are already printed to stdout/stderr in real-time
+                log(f"[!] CLI Failed with exit code {e.returncode}")
                 raise RuntimeError(f"GPT-SoVITS CLI Error (Exit Code {e.returncode})") from e
             finally:
                 # Cleanup Temp Text Files

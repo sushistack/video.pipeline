@@ -3,6 +3,10 @@ import json
 import yaml
 import time
 import typing_extensions as typing
+import warnings
+
+# Suppress Google Generative AI deprecation warning
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
 import google.generativeai as genai
 from pathlib import Path
 from dotenv import load_dotenv

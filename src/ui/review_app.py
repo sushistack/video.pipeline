@@ -2,6 +2,10 @@ import streamlit as st
 import sys
 from pathlib import Path
 import importlib
+import warnings
+
+# Suppress Google API Core version warning
+warnings.filterwarnings("ignore", message=".*Python version.*google.api_core.*", category=FutureWarning)
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

@@ -38,6 +38,15 @@ def render_scenario_tab(output_root: Path, base_dir: Path):
         if do_en: selected_langs.append("en")
         if do_ko: selected_langs.append("ko")
         if do_ja: selected_langs.append("ja")
+        
+        # Global Warning for Missing Maps (Selected Targets)
+        base_missing = []
+        for l in selected_langs:
+             if not (sel_proj_sc_root / f"speaker_map-{l}.json").exists():
+                  base_missing.append(l.upper())
+        
+        if base_missing:
+             st.error(f"⚠️ Configuration needed for: {', '.join(base_missing)}")
 
         st.divider()
 
@@ -65,59 +74,124 @@ def render_scenario_tab(output_root: Path, base_dir: Path):
             inputs_root = base_dir / "materials/audios/inputs"
             avail_voice_langs = sorted([d.name for d in inputs_root.iterdir() if d.is_dir()]) if inputs_root.exists() else ["ja"]
 
-            if not selected_langs:
-                st.info("Select a language above to configure mapping.")
+            # Fixed list of languages to show mapping for
+            MAPPING_LANGS = ["en", "ko", "ja"]
             
-            # Loop through selected languages for mapping
-            for lang_code in selected_langs:
-                with st.expander(f"Mapping for {lang_code.upper()}", expanded=True):
-                    map_file = sel_proj_sc_root / f"speaker_map-{lang_code}.json"
+            for lang_code in MAPPING_LANGS:
+                map_file = sel_proj_sc_root / f"speaker_map-{lang_code}.json"
+                cur_map = {}
+                map_exists = map_file.exists()
+                
+                if map_exists:
+                    try: cur_map = json.load(open(map_file))
+                    except: pass
+
+                # --- Status & Header Logic ---
+                is_selected_target = lang_code in selected_langs
+                
+                if not is_selected_target:
+                     # Inactive State
+                     header_title = f"⚪ Mapping for {lang_code.upper()} (Disabled)"
+                     is_expanded = False
+                     
+                     with st.expander(header_title, expanded=is_expanded):
+                          st.caption(f"Select '{lang_code.upper()}' in Target Languages above to configure this mapping.")
+                
+                else:
+                    # Active State
+                    # "If map exists -> Collapsed, else -> Open"
+                    is_expanded = not map_exists
                     
-                    cur_map = {}
-                    if map_file.exists():
-                        try: cur_map = json.load(open(map_file))
-                        except: pass
-                    
-                    to_save = {}
-                    
-                    # UI Header
-                    c_h1, c_h2, c_h3 = st.columns([1,1,3])
-                    c_h1.caption("Speaker")
-                    c_h2.caption("Voice Lang")
-                    c_h3.caption("Voice File")
-                    
-                    for spk in unique_speakers:
-                        rc1, rc2, rc3 = st.columns([1,1,3])
-                        rc1.markdown(f"**{spk}**")
+                    # Header Title Decoration
+                    status_icon = "✅" if map_exists else "⚠️"
+                    title_color = "green" if map_exists else "red"
+                    header_title = f"{status_icon} Mapping for {lang_code.upper()}"
+                    if not map_exists:
+                        header_title += " (Not Configured)"
+
+                    with st.expander(header_title, expanded=is_expanded):
+                        to_save = {}
                         
-                        # Def values
-                        d_v_l = cur_map.get(spk, {}).get("lang", "ja")
-                        if d_v_l not in avail_voice_langs and avail_voice_langs: d_v_l = avail_voice_langs[0]
+                        # Columns for Header: Speaker | Voice Lang | Voice File
+                        c_h1, c_h2, c_h3 = st.columns([1,1,3])
+                        c_h1.caption("Speaker")
+                        c_h2.caption("Voice Lang")
+                        c_h3.caption("Voice File")
                         
-                        sel_vl = rc2.selectbox("Voice Language", avail_voice_langs, key=f"vl_{lang_code}_{spk}", 
-                                             index=avail_voice_langs.index(d_v_l) if d_v_l in avail_voice_langs else 0,
-                                             label_visibility="collapsed")
+                        for spk in unique_speakers:
+                            rc1, rc2, rc3 = st.columns([1,1,3])
+                            rc1.markdown(f"**{spk}**")
+                            
+                            # Strict Match Logic
+                            curr_data = cur_map.get(spk, {})
+                            
+                            # 1. Voice Language
+                            saved_lang = curr_data.get("lang")
+                            
+                            default_lang_idx = 0
+                            
+                            if saved_lang and saved_lang in avail_voice_langs:
+                                 default_lang_idx = avail_voice_langs.index(saved_lang)
+                            elif lang_code in avail_voice_langs:
+                                 default_lang_idx = avail_voice_langs.index(lang_code)
+                            
+                            sel_vl = rc2.selectbox(
+                                "Voice Lang", 
+                                avail_voice_langs, 
+                                key=f"vl_{sel_proj_sc_root.name}_{lang_code}_{spk}", 
+                                index=default_lang_idx,
+                                label_visibility="collapsed"
+                            )
+                            
+                            # 2. Voice File
+                            v_dir = inputs_root / sel_vl
+                            v_files = sorted([f.name for f in v_dir.glob("*.*")]) if v_dir.exists() else []
+                            v_files.insert(0, "- Select -") # Add unselected option
+                            
+                            saved_file = curr_data.get("file")
+                            
+                            def_file_idx = 0
+                            if saved_file and saved_file in v_files:
+                                 def_file_idx = v_files.index(saved_file)
+                            
+                            # Visual validation for File selection
+                            sel_vf = rc3.selectbox(
+                                "Voice File", 
+                                v_files, 
+                                key=f"vf_{sel_proj_sc_root.name}_{lang_code}_{spk}",
+                                index=def_file_idx, 
+                                label_visibility="collapsed"
+                            )
+                            
+                            # If "Select" is chosen, show warning text below
+                            if sel_vf == "- Select -":
+                                 rc3.caption(f":red[⚠️ Please select a voice file]")
+                                 to_save[spk] = {"lang": sel_vl, "file": None}
+                            else:
+                                 to_save[spk] = {"lang": sel_vl, "file": sel_vf}
+
+                        if st.button(f"💾 Save {lang_code.upper()} Mapping", key=f"btn_save_{lang_code}"):
+                            # Validate before save
+                            valid_save = True
+                            for k, v in to_save.items():
+                                 if v["file"] is None:
+                                      valid_save = False
+                                      break
+                            
+                            if valid_save:
+                                 # Clean up "None" just in case before saving (though logic above handles it)
+                                 final_save = {k: {"lang": v["lang"], "file": v["file"]} for k,v in to_save.items()}
+                                 with open(map_file, "w") as f: json.dump(final_save, f, indent=2, ensure_ascii=False)
+                                 st.toast(f"Saved {map_file.name}", icon="✅")
+                                 st.rerun()
+                            else:
+                                 st.error("Please select a voice file for all speakers.")
                         
-                        # Files
-                        v_dir = inputs_root / sel_vl
-                        v_files = sorted([f.name for f in v_dir.glob("*.*")]) if v_dir.exists() else []
-                        
-                        d_v_f = cur_map.get(spk, {}).get("file", "")
-                        idx_f = v_files.index(d_v_f) if d_v_f in v_files else 0
-                        
-                        sel_vf = rc3.selectbox("Voice File", v_files, key=f"vf_{lang_code}_{spk}",
-                                             index=idx_f, label_visibility="collapsed")
-                                             
-                        to_save[spk] = {"lang": sel_vl, "file": sel_vf}
-                        
-                    if st.button(f"🔄 Update", key=f"btn_save_{lang_code}"):
-                        with open(map_file, "w") as f: json.dump(to_save, f, indent=2, ensure_ascii=False)
-                        st.toast(f"Updated {map_file.name}", icon="✅")
-                        st.rerun()
-                    
-                    if map_file.exists():
-                        st.caption(f"Current Mapping ({map_file.name}):")
-                        st.json(json.load(open(map_file)), expanded=True)
+                        # Nested Raw JSON (Only if exists)
+                        if map_exists:
+                            st.write("---")
+                            with st.expander("View Raw JSON", expanded=False):
+                                st.json(json.load(open(map_file)))
 
         st.divider()
         
@@ -186,7 +260,11 @@ def render_scenario_tab(output_root: Path, base_dir: Path):
 
         # 3. Viewer
         st.subheader("👁️ Scenario Viewer")
-        sc_files = sorted(list(sel_proj_sc_root.glob("senario-*.xml")))
+        # Filter files based on selected_langs
+        sc_files = sorted([
+            f for f in sel_proj_sc_root.glob("senario-*.xml")
+            if f.stem.replace("senario-", "") in selected_langs
+        ])
         if sc_files:
             # Use Tabs for better UX
             sc_tabs = st.tabs([f.name for f in sc_files])
