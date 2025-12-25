@@ -6,6 +6,7 @@ import shutil
 import logging
 import subprocess
 import tempfile
+import re  # Added missing import
 from pathlib import Path
 from typing import Optional, Dict
 
@@ -76,8 +77,11 @@ class GPTSoVITSAdapter:
         Handles temp file creation for text inputs.
         """
         def log(msg):
-            logger.info(msg)
-            if callback: callback(msg)
+            # If callback is provided, delegate logging to it (to avoid duplication in UI/Console)
+            if callback:
+                callback(msg)
+            else:
+                logger.info(msg)
 
         # Validate Inputs
         if not gpt_model_path.exists():
@@ -103,6 +107,7 @@ class GPTSoVITSAdapter:
                 # Construct Command
                 cmd = [
                     self.python_exec,
+                    "-u",
                     str(self.cli_script),
                     "--gpt_model", str(gpt_model_path),
                     "--sovits_model", str(sovits_model_path),
@@ -120,8 +125,9 @@ class GPTSoVITSAdapter:
 
                 if device:
                     env["GPT_SOVITS_DEVICE"] = device
-                elif sys.platform == "darwin":
-                    # Force CPU on macOS to avoid MPS channel limits (conv1d > 65536)
+                else:
+                    # Force CPU to avoid 'HIP error: invalid device function' 
+                    # causing crashes on incompatible ROCm setups
                     env["GPT_SOVITS_DEVICE"] = "cpu"
                 
                 # Critical Fix: Enable CPU fallback for MPS operations not implemented (e.g. huge conv1d)
@@ -135,29 +141,45 @@ class GPTSoVITSAdapter:
                 env["cnhubert_base_path"] = str(self.vendor_dir / "GPT_SoVITS/pretrained_models/chinese-hubert-base")
                 env["bert_path"] = str(self.vendor_dir / "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large")
                 env["is_half"] = "False" # Use FP32 for CPU compatibility/safety
+                env["PYTHONUNBUFFERED"] = "1" # Force unbuffered output for real-time logging
 
-                # Use Popen to capture stdout in real-time
+                # Use Popen to capture stdout in real-time (Binary Unbuffered)
                 process = subprocess.Popen(
                     cmd, 
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT, # Merge stderr to stdout
-                    text=True, 
+                    text=False,           # Binary mode for unbuffered
                     cwd=self.vendor_dir,
                     env=env,
-                    bufsize=1,            # Line buffered
-                    universal_newlines=True
+                    bufsize=0,            # Unbuffered
                 )
                 
-                # Stream logs
-                for line in process.stdout:
-                    line = line.replace("\n", "")
-                    if line.strip():
-                        # Don't double log if our logger.info already goes to stdout
-                        # But for UI callback we need it.
-                        print(line) # Ensure it hits console
-                        if callback: callback(line)
+                # Stream logs with support for \r (progress bars)
+                def read_stream(stream):
+                    buffer = bytearray()
+                    while True:
+                        chunk = stream.read(1) # Read 1 byte to handle \r immediately
+                        if not chunk:
+                            if buffer:
+                                yield buffer.decode("utf-8", errors="replace")
+                            break
+                        
+                        if chunk == b'\n' or chunk == b'\r':
+                            if buffer:
+                                yield buffer.decode("utf-8", errors="replace")
+                                buffer.clear()
+                        else:
+                            buffer.extend(chunk)
+
+                for line in read_stream(process.stdout):
+                    line = line.strip()
+                    if not line: continue
+                    
+                    # Direct Pass-through (No Filtering) to verify real-time streaming
+                    if callback: callback(line)
+                    else: logger.info(line)
                 
-                process.wait()
+                process.wait() # Ensure process is finished and returncode is set
                 
                 if process.returncode != 0:
                      raise subprocess.CalledProcessError(process.returncode, cmd)

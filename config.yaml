@@ -44,7 +44,7 @@ speakers:
     ref_text: '日が昇ってるうちは、あの橋のたもとでお客さんを待ってるけど。'
     ref_lang: ja
   sato-haruto:
-    audio_type: wav
+    audio_type: mp3
     ref_text: '人に嫌われたくなくて必死になってる。 でもお前に嫌だって言っても絶対。 誰にも渡さない。'
     ref_lang: ja
   suzuki-ren:

@@ -1,4 +1,5 @@
 import sys
+sys.stdout.reconfigure(line_buffering=True)
 import os
 import argparse
 import shutil
@@ -57,9 +58,9 @@ try:
     PROJECT_ROOT = WORKER_ROOT.parent
     PRETRAINED_ROOT = PROJECT_ROOT / "models" / "pretrained"
     
-    bert_path = PRETRAINED_ROOT / "bert"
-    cnhubert_path = PRETRAINED_ROOT / "hubert"
-    sv_model_path = PRETRAINED_ROOT / "sv" / "pretrained_eres2netv2w24s4ep4.ckpt"
+    bert_path = GPT_SOVITS_INNER / "pretrained_models" / "chinese-roberta-wwm-ext-large"
+    cnhubert_path = GPT_SOVITS_INNER / "pretrained_models" / "chinese-hubert-base"
+    sv_model_path = GPT_SOVITS_INNER / "pretrained_models" / "sv" / "pretrained_eres2netv2w24s4ep4.ckpt"
     
     v4_vocoder_path = PRETRAINED_ROOT / "gsv-v4-pretrained" / "vocoder.pth"
     
@@ -69,8 +70,8 @@ try:
     os.environ["v4_vocoder_path"] = str(v4_vocoder_path)
     
     # Default Paths to prevent init errors
-    default_gpt_path = PRETRAINED_ROOT / "v2" / "s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"
-    default_sovits_path = PRETRAINED_ROOT / "v2" / "s2G488k.pth"
+    default_gpt_path = GPT_SOVITS_INNER / "pretrained_models" / "s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"
+    default_sovits_path = GPT_SOVITS_INNER / "pretrained_models" / "s2G488k.pth"
     
     os.environ["gpt_path"] = str(default_gpt_path)
     os.environ["sovits_path"] = str(default_sovits_path)
@@ -93,7 +94,10 @@ try:
     except ImportError:
         pass
     
-    from GPT_SoVITS.inference_webui import change_gpt_weights, change_sovits_weights, get_tts_wav
+    # Temporarily suppress stdout/stderr during import to hide global execution logs from inference_webui
+    with open(os.devnull, "w") as fnull:
+        with contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
+            from GPT_SoVITS.inference_webui import change_gpt_weights, change_sovits_weights, get_tts_wav
 except ImportError as e:
     import traceback
     traceback.print_exc(file=sys.stderr)
@@ -137,7 +141,7 @@ def synthesize(
 
     # Configure logging
     # Use simple config matching adapter, force=True to ensure it applies
-    logging.basicConfig(level=logging.INFO, force=True) 
+    logging.basicConfig(level=logging.INFO, force=True, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S') 
 
     # Change Model Weights
     try:

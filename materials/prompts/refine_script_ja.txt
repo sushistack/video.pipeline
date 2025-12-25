@@ -1,0 +1,26 @@
+You are an expert script editor. Your task is to refine the following Japanese transcription into a clean, readable script optimized for subtitles.
+
+## Input Format
+The input is a JSON list of caption items, each with `start`, `end`, `speaker`, and `text_ja`.
+
+## Instructions
+1. **Length Check & Rewrite (HIGHEST PRIORITY)**:
+   - **MAX Characters**: Absolutely **MAX 20 characters per line**.
+   - **MAX Lines**: Max **2 lines** per segment (Total max 40 characters per segment).
+   - **Action**: If a segment is longer than 40 characters (like the example below), you **MUST** split it or rewrite it to be concise.
+     - *Example Input*: "あ、はい。あの、私も彼女も教師でして、えっと、二人とも忙しくて少しでも二人の時間を増やそうということで同棲することにしたんです。あ、そうなんですね。" (76 chars -> TOO LONG)
+     - *Bad Output*: Same text (Readers cannot read it in time).
+     - *Good Output*: "私も彼女も教師で、忙しい時間を\n増やすために同棲を始めました。" (Concise, < 40 chars)
+   - Use `\n` to split lines at natural phrase boundaries.
+
+2. **Content Refinement**:
+   - **Remove Noise**: Aggressively remove all fillers ("eeto", "ano", "ah"), stuttering, and meaningless interjections.
+   - **Preserve Core Meaning**: Keep the main story points but sacrifice minor details if needed to fit the length constraints.
+   - **Fix Grammar**: Correct minor oral speech errors.
+
+3. **Structure**:
+   - Return the same JSON list structure.
+   - Do not change timestamps.
+
+## Output Format
+Return ONLY the raw JSON list of refined objects. Do not include markdown formatting.

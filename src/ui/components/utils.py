@@ -103,4 +103,27 @@ def get_kanjis(text):
                 "yomigana": hira
             })
             
+            
     return results
+
+def srt_to_ms(time_str):
+    """Converts SRT timestamp 'HH:MM:SS,mmm' to milliseconds."""
+    hours, minutes, seconds = time_str.split(':')
+    seconds, milliseconds = seconds.split(',')
+    
+    total_ms = (int(hours) * 3600000) + \
+               (int(minutes) * 60000) + \
+               (int(seconds) * 1000) + \
+               int(milliseconds)
+    return total_ms
+
+def ms_to_srt(total_ms):
+    """Converts milliseconds to SRT timestamp 'HH:MM:SS,mmm'."""
+    hours = total_ms // 3600000
+    total_ms %= 3600000
+    minutes = total_ms // 60000
+    total_ms %= 60000
+    seconds = total_ms // 1000
+    milliseconds = total_ms % 1000
+    
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02},{int(milliseconds):03}"

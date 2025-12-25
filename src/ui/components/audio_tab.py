@@ -1,4 +1,5 @@
 import streamlit as st
+
 import json
 import yaml
 import sys
@@ -75,13 +76,77 @@ def resolve_speaker_config(spk_tag: str, spk_map: dict, base_dir: Path, speakers
     
     return ref_audio_path, ref_text, ref_lang
 
-def generation_worker(base_dir, selected_project, target_langs, gpt_path, sovits_path, speed_factor, speakers_cfg, _ignored_map, log_list):
-    """Background worker for audio generation"""
+# --- Helper Functions (Module Level) ---
+
+def update_log_container(container, logs):
+    """
+    Renders the list of log messages into the Streamlit container 
+    using a reversed flex-direction for auto-scrolling to bottom.
+    """
+    if not container: return
+    
+    # Construct CSS-based HTML
+    rev_logs = logs[::-1]
+    
+    def escape_html(text):
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    inner_html = "\n".join([f"<div>{escape_html(l)}</div>" for l in rev_logs])
+    
+    container_id = "process_log_container"
+    log_html = f"""
+    <div id="{container_id}" style="
+        height: 400px; 
+        overflow-y: auto; 
+        display: flex; 
+        flex-direction: column-reverse;
+        background-color: #0e1117; 
+        color: #fafafa; 
+        padding: 1rem; 
+        border: 1px solid #31333f; 
+        border-radius: 0.5rem; 
+        font-family: 'Source Code Pro', monospace; 
+        font-size: 14px; 
+        line-height: 1.5;">
+{inner_html}
+    </div>
+    """
+    container.markdown(log_html, unsafe_allow_html=True)
+
+
+def run_generation_sync(base_dir, selected_project, target_langs, gpt_path, sovits_path, speed_factor, speakers_cfg, log_container, prog_bar):
+    """
+    Synchronous generation worker.
+    Updates UI directly via Streamlit placeholders (log_container, prog_bar).
+    """
+    # Init State
+    st.session_state["audio_logs"] = []
     
     def log(msg):
-        logger.info(msg)
+        # Handle Progress Signals (explicit - kept just in case)
+        if msg.startswith("PROGRESS:"):
+            return
+
+        # Normal Logs
         ts = datetime.now().strftime("%H:%M:%S")
-        log_list.append(f"[{ts}] {msg}")
+        formatted_msg = f"[{ts}] {msg}"
+        print(formatted_msg, flush=True) # Console Log
+        
+        # Smart Text Handling (for tqdm flicker reduction)
+        is_progress = "it/s]" in msg or "%|" in msg
+        logs = st.session_state["audio_logs"]
+        
+        if is_progress and logs:
+             last_line = logs[-1]
+             if "it/s]" in last_line or "%|" in last_line:
+                 logs[-1] = formatted_msg
+             else:
+                 logs.append(formatted_msg)
+        else:
+             logs.append(formatted_msg)
+        
+        # Update UI Immediately
+        update_log_container(log_container, logs)
 
     try:
         log("Initializing TTS Engine...")
@@ -99,33 +164,39 @@ def generation_worker(base_dir, selected_project, target_langs, gpt_path, sovits
         log(f"speed_factor: {speed_factor}")
         log("=========================================")
 
-        for idx, lang in enumerate(target_langs):
-            if st.session_state.get("audio_gen_stop", False):
-                break
-
+        # --- Pre-calculate Total Tasks for Progress Bar ---
+        total_tasks = 0
+        task_list = [] # List of (lang, index, match_tuple)
+        
+        for lang in target_langs:
             xml_path = selected_project / f"senario-{lang}.xml"
-            map_path = selected_project / f"speaker_map-{lang}.json"
-            out_audio_dir = selected_project / "audios" / lang
-            out_audio_dir.mkdir(parents=True, exist_ok=True)
-            
-            if not xml_path.exists():
-                continue
-
-            # Load Map
-            spk_map = {}
-            if map_path.exists():
-                try: spk_map = json.load(open(map_path))
-                except: pass
-
+            if not xml_path.exists(): continue
             try:
                 content = xml_path.read_text(encoding="utf-8")
                 pattern = re.compile(r"<([^>]+)>(.*?)</\1>")
                 matches = pattern.findall(content)
-            except: matches = []
+                if matches:
+                    total_tasks += len(matches)
+                    task_list.append((lang, matches, xml_path))
+            except: pass
             
-            if not matches:
-                log(f"No matches found in {xml_path.name}")
-                continue
+        current_progress = 0
+        
+        # Initialize Progress Bar
+        if total_tasks > 0:
+             prog_bar.progress(0.0, text=f"Starting... 0% (0/{total_tasks})")
+        else:
+             prog_bar.progress(0.0, text="No tasks found.")
+
+        for (lang, matches, xml_path) in task_list:
+            if st.session_state.get("audio_gen_stop", False): break
+            
+            # Load Map
+            map_path = selected_project / f"speaker_map-{lang}.json"
+            spk_map = {}
+            if map_path.exists():
+                try: spk_map = json.load(open(map_path))
+                except: pass
             
             # --- Speaker Config Summary ---
             speaker_cache = {}
@@ -138,23 +209,28 @@ def generation_worker(base_dir, selected_project, target_langs, gpt_path, sovits
                 speaker_cache[sp] = (r_audio, r_text, r_lang)
                 status = "OK" if r_audio else "MISSING"
                 audio_name = r_audio.name if r_audio else "None"
-                # Truncate long text
                 disp_text = r_text[:30] + "..." if len(r_text) > 30 else r_text
                 log(f"Speaker '{sp}': Audio={audio_name} [{status}], Text={disp_text}, Lang={r_lang}")
             log("------------------------------")
             log(f"")
+
+            out_audio_dir = selected_project / "audios" / lang
+            out_audio_dir.mkdir(parents=True, exist_ok=True)
 
             for i, (spk_tag, text) in enumerate(matches):
                 if st.session_state.get("audio_gen_stop", False):
                     break
 
                 text = text.strip()
-                if not text: continue
+                if not text: 
+                    current_progress += 1
+                    continue
                 
                 ref_audio_path, ref_text, ref_lang = speaker_cache.get(spk_tag, (None, "", "ja"))
                 
                 if not ref_audio_path:
                     log(f"Skipping {spk_tag}: Ref Audio unavailable.")
+                    current_progress += 1
                     continue
                 
                 out_wav = out_audio_dir / f"{i:03d}_{spk_tag}.mp3"
@@ -174,37 +250,41 @@ def generation_worker(base_dir, selected_project, target_langs, gpt_path, sovits
                            target_language=lang,
                            output_path=out_wav,
                            speed_factor=speed_factor,
-                           callback=lambda msg: log_list.append(msg)
+                           callback=log
                     )
                     gen_count += 1
                 except Exception as e:
                      log(f"Error {lang}/{spk_tag}: {e}")
+                
+                # Update Progress (Count Based)
+                current_progress += 1
+                if total_tasks > 0:
+                    p_val = min(current_progress / total_tasks, 1.0)
+                    prog_bar.progress(p_val, text=f"Processing... {int(p_val*100)}% ({current_progress}/{total_tasks})")
         
         if st.session_state.get("audio_gen_stop", False):
              log("🛑 Stopped.")
         else:
              log(f"🎉 Completed! Generated {gen_count} audio files.")
+             prog_bar.progress(1.0, text="Completed!")
              
     except Exception as e:
         log(f"Critical Error: {e}")
         import traceback
         traceback.print_exc()
-    finally:
-        st.session_state["audio_gen_running"] = False
-        st.session_state["audio_gen_stop"] = False
+
 
 
 def render_audio_tab(output_root: Path, base_dir: Path):
     st.header("🎙️ Text-to-Speech Generation")
 
-    # Init Session State
-    if "audio_gen_running" not in st.session_state: st.session_state["audio_gen_running"] = False
-    if "audio_gen_stop" not in st.session_state: st.session_state["audio_gen_stop"] = False
-    if "audio_logs" not in st.session_state: st.session_state["audio_logs"] = []
+    # Init State
+    if "audio_generating" not in st.session_state:
+        st.session_state["audio_generating"] = False
+        
+    is_generating = st.session_state["audio_generating"]
 
-    is_running = st.session_state["audio_gen_running"]
-    
-    # File Selection (Same Logic)
+    # File Selection
     all_projects = []
     if output_root.exists():
         for proj_dir in output_root.iterdir():
@@ -219,7 +299,7 @@ def render_audio_tab(output_root: Path, base_dir: Path):
         st.info("No projects with 'senario-*.xml' found. Please generate a scenario first.")
         return
 
-    # Default latest logic
+    # Default logic
     if "selected_audio_project" not in st.session_state:
          if all_projects:
               latest = max(all_projects, key=lambda p: (p / "subtitles" / "ja.srt").stat().st_mtime if (p / "subtitles" / "ja.srt").exists() else p.stat().st_mtime)
@@ -235,7 +315,6 @@ def render_audio_tab(output_root: Path, base_dir: Path):
     def on_audio_project_change():
         st.session_state["selected_audio_project"] = st.session_state["project_selector_audio"]
     
-    # Selection from session state
     try:
         current_index_audio = all_projects.index(st.session_state["selected_audio_project"])
     except ValueError:
@@ -249,13 +328,13 @@ def render_audio_tab(output_root: Path, base_dir: Path):
         index=current_index_audio,
         key="project_selector_audio",
         on_change=on_audio_project_change,
-        disabled=is_running # Disabled when running
+        disabled=is_generating
     )
     
     if selected_project and selected_project.exists():
         st.caption(f"Generating Audio for: **{selected_project.name}**")
         
-        # 1. Configuration (Model & Target)
+        # 1. Configuration 
         st.subheader("⚙️ Configuration")
         cfg_col1, cfg_col2 = st.columns(2)
         
@@ -267,18 +346,16 @@ def render_audio_tab(output_root: Path, base_dir: Path):
                 index=0, 
                 label_visibility="collapsed", 
                 key="model_ver_sel",
-                disabled=is_running
+                disabled=is_generating
             )
             
             # Consolidated Paths
             models_root = base_dir / "models/pretrained"
 
             if model_version == "V4":
-                # V4 uses s1v3 (GPT) + s2Gv4 (SoVITS)
                 gpt_path = models_root / "s1v3.ckpt" 
                 sovits_path = models_root / "gsv-v4-pretrained/s2Gv4.pth"
             elif model_version == "V2Pro":
-                # V2 models consolidated in 'v2' and 'v2Pro'
                 gpt_path = models_root / "s1v3.ckpt" 
                 sovits_path = models_root / "v2Pro/s2Gv2Pro.pth"
             elif model_version == "V2ProPlus":
@@ -288,21 +365,17 @@ def render_audio_tab(output_root: Path, base_dir: Path):
             g_ok = "✅" if gpt_path.exists() else "❌"
             s_ok = "✅" if sovits_path.exists() else "❌"
             
-            # Show truncated names
-            g_name = gpt_path.name[-15:] if len(gpt_path.name) > 15 else gpt_path.name
-            s_name = sovits_path.name[-15:] if len(sovits_path.name) > 15 else sovits_path.name
-            
-            st.caption(f"{g_ok} GPT: ...{g_name} | {s_ok} SoVITS: ...{s_name}")
+            st.caption(f"{g_ok} GPT: ...{gpt_path.name[-15:]} | {s_ok} SoVITS: ...{sovits_path.name[-15:]}")
 
         with cfg_col2:
             st.caption("Target Languages")
             c_l1, c_l2, c_l3 = st.columns(3)
-            with c_l1: gen_en = st.checkbox("English", value=False, key="aud_en", disabled=is_running)
-            with c_l2: gen_ko = st.checkbox("Korean", value=False, key="aud_ko", disabled=is_running)
-            with c_l3: gen_ja = st.checkbox("Japanese", value=True, key="aud_ja", disabled=is_running)
+            with c_l1: gen_en = st.checkbox("English", value=False, key="aud_en", disabled=is_generating)
+            with c_l2: gen_ko = st.checkbox("Korean", value=False, key="aud_ko", disabled=is_generating)
+            with c_l3: gen_ja = st.checkbox("Japanese", value=True, key="aud_ja", disabled=is_generating)
 
             st.caption("Speech Speed")
-            speed_factor = st.slider("Speed Factor", 0.5, 2.0, 1.1, 0.1, key="aud_speed", disabled=is_running)
+            speed_factor = st.slider("Speed Factor", 0.5, 2.0, 1.1, 0.1, key="aud_speed", disabled=is_generating)
 
         target_langs = []
         if gen_en: target_langs.append("en")
@@ -311,10 +384,39 @@ def render_audio_tab(output_root: Path, base_dir: Path):
 
         st.divider()
 
-        # 2. Generation Logic
-        st.subheader("🎧 Generation")
+        # 2. Controls
+        c_gen, _ = st.columns([1, 2])
+        gen_placeholder = c_gen.empty()
         
-        # Load Config (Needed for worker kwargs)
+        # Handler for Start Button
+        def on_start_click():
+            st.session_state["audio_generating"] = True
+            
+        if not is_generating:
+            with gen_placeholder:
+                 st.button("🎙️ Generate Audio Tracks", type="primary", 
+                           disabled=not target_langs, 
+                           use_container_width=True,
+                           on_click=on_start_click)
+        else:
+             # Show Running State
+             with gen_placeholder:
+                 st.button("🚫 Generating... (Please Wait)", type="secondary", disabled=True, use_container_width=True)
+
+        # Progress Bar Placeholder
+        prog_bar = st.progress(0.0, text="")
+        
+        st.divider()
+
+        # 3. Log Area
+        st.markdown("### Process Logs")
+        log_container = st.empty()
+        
+        # Restore logs if they exist
+        if "audio_logs" in st.session_state and st.session_state["audio_logs"]:
+            update_log_container(log_container, st.session_state["audio_logs"])
+        
+        # Load Config
         try:
             config_path = base_dir / "config.yaml"
             if config_path.exists():
@@ -325,52 +427,16 @@ def render_audio_tab(output_root: Path, base_dir: Path):
             else:
                 speakers_cfg = {}
         except: speakers_cfg = {}
-        
 
-
-        # 3. Control Buttons Area
-        st.subheader("🎧 Generation Control")
-        
-        if is_running:
-            c1, c2 = st.columns([1, 4])
-            with c1:
-                if st.button("🚫 Force Stop", type="primary"):
-                     st.session_state["audio_gen_stop"] = True
-            with c2:
-                st.info("Generating Audio... Please wait.")
+        # Execution Logic
+        if is_generating:
+            # We run the logic, then reset the flag
+            run_generation_sync(
+                base_dir, selected_project, target_langs, gpt_path, sovits_path, 
+                speed_factor, speakers_cfg, log_container, prog_bar
+            )
             
-            # Polling mechanism
+            # Finished
             time.sleep(1)
+            st.session_state["audio_generating"] = False
             st.rerun()
-            
-        else:
-            def start_thread():
-                st.session_state["audio_gen_running"] = True
-                st.session_state["audio_logs"] = []
-                st.session_state["audio_gen_stop"] = False
-                
-                # Capture current context explicitly
-                ctx = get_script_run_ctx()
-                
-                # Pass the list OBJECT directly
-                log_list = st.session_state["audio_logs"]
-                
-                t = threading.Thread(
-                    target=generation_worker, 
-                    args=(base_dir, selected_project, target_langs, gpt_path, sovits_path, speed_factor, speakers_cfg, {}, log_list)
-                )
-                add_script_run_ctx(t, ctx)
-                t.start()
-                
-            st.button("🎙️ Generate Audio Tracks", type="primary", disabled=not target_langs, on_click=start_thread)
-
-        st.divider()
-
-        # Log Area
-        st.markdown("### Process Logs (Newest First)")
-        log_box = st.container(height=400)
-        with log_box:
-            # Render logs in REVERSE order (Newest at top) to ensure visibility of latest
-            rev_logs = list(reversed(st.session_state["audio_logs"]))
-            log_text = "\n".join(rev_logs)
-            st.code(log_text, language="text")

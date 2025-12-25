@@ -1,4 +1,6 @@
 import os
+import sys
+
 import json
 import yaml
 import time
@@ -8,6 +10,8 @@ import warnings
 # Suppress Google Generative AI deprecation warning
 warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
 import google.generativeai as genai
+import shutil
+import subprocess
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -67,6 +71,11 @@ class CaptionGenerator:
 
         print(f"[*] CaptionGenerator initialized with {self.model_name}")
 
+        # Load Prompts
+        self.prompts_dir = base_dir / "materials" / "prompts"
+        self.prompts_dir.mkdir(parents=True, exist_ok=True)
+
+
     def generate(self, audio_path: Path, output_dir: Path, target_languages: list[str] = ["ja", "en", "ko"], generate_json: bool = True, speaker_count: typing.Optional[int] = None):
         base_name = audio_path.stem
         
@@ -77,9 +86,21 @@ class CaptionGenerator:
         
         print(f"[*] Project Directory: {project_dir}")
 
+
+
+        # STEP 0: Audio Preprocessing (FFmpeg + Demucs)
+        print("[-] Step 0: Preprocessing Audio (Loudnorm + Vocal Isolation)...")
+        try:
+            processed_audio = self._preprocess_audio(audio_path, project_dir / "temp")
+            print(f"[+] Used Processed Audio: {processed_audio}")
+        except Exception as e:
+            print(f"[!] Preprocessing failed: {e}")
+            print("[!] Falling back to original audio.")
+            processed_audio = audio_path
+
         # STEP 1: Generate Base Japanese Captions (Audio -> Text)
         print("[-] Step 1: Generating Base Japanese Captions...")
-        captions = self._generate_base_captions(audio_path, speaker_count)
+        captions = self._generate_base_captions(processed_audio, speaker_count)
         
         # Save JA SRT immediately
         if "ja" in target_languages:
@@ -332,6 +353,134 @@ class CaptionGenerator:
                 time.sleep(1)
         
         raise ValueError("Failed to generate valid XML scenario after 3 attempts.")
+
+    def _preprocess_audio(self, input_path: Path, output_dir: Path) -> Path:
+        """
+        1. Normalize loudness (FFmpeg)
+        2. Isolate vocals (Demucs)
+        Returns path to the isolated vocals.
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 1. Normalize
+        normalized_path = output_dir / "normalized.wav"
+        if not normalized_path.exists():
+            print("    [*] Normalizing loudness...")
+            cmd_norm = [
+                "ffmpeg", "-y", "-i", str(input_path),
+                "-af", "loudnorm=I=-16:LRA=11:TP=-1.5",
+                str(normalized_path)
+            ]
+            subprocess.run(cmd_norm, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # 2. Vocal Separation (Demucs)
+        # Demucs output structure: {output_dir}/htdemucs/{track_name}/vocals.wav
+        # We need to correctly identify the track name demucs uses (usually filename without extension)
+        track_name = normalized_path.stem
+        demucs_out = output_dir / "demucs"
+        expected_vocals = demucs_out / "htdemucs" / track_name / "vocals.wav"
+        
+        if not expected_vocals.exists():
+            print("    [*] Separating vocals (Demucs)... This may take time.")
+            # Run demucs
+            # demucs --two-stems=vocals -o {out_dir} {input}
+            cmd_demucs = [
+                "demucs", "--two-stems=vocals",
+                "-d", "cpu",
+                "-o", str(demucs_out),
+                str(normalized_path)
+            ]
+            # Capture output to avoid cluttering logs too much, but print if error
+            try:
+                subprocess.run(cmd_demucs, check=True) # Let it print progress
+            except FileNotFoundError:
+                 # Try python -m demucs if direct command not found
+                cmd_demucs_py = [
+                    sys.executable, "-m", "demucs", 
+                    "--two-stems=vocals",
+                    "-d", "cpu",
+                    "-o", str(demucs_out),
+                    str(normalized_path)
+                ]
+                subprocess.run(cmd_demucs_py, check=True)
+
+        if expected_vocals.exists():
+            return expected_vocals
+        else:
+            raise FileNotFoundError(f"Demucs output not found at {expected_vocals}")
+
+    def refine_script(self, captions: list[CaptionItem]) -> list[CaptionItem]:
+        """
+        Refines the Japanese script by removing filler and focusing on story relevance.
+        Uses materials/prompts/refine_script_ja.txt
+        """
+        prompt_file = self.prompts_dir / "refine_script_ja.txt"
+        if not prompt_file.exists():
+            print(f"[!] Warning: Refine prompt not found at {prompt_file}. Using default.")
+            prompt_text = "Refine the following Japanese script to remove filler and improved flow."
+        else:
+            prompt_text = prompt_file.read_text(encoding="utf-8")
+
+        prompt = f"""
+        {prompt_text}
+
+        # Input Data:
+        {json.dumps(captions, ensure_ascii=False)}
+        """
+        
+        for attempt in range(3):
+            try:
+                print(f"[-] Refining script with {self.model_name} (Attempt {attempt+1}/3)...")
+                response = self.model.generate_content(prompt)
+                result = self._parse_json_response(response.text)
+                if result:
+                    return result
+                print("[!] Empty or invalid JSON received. Retrying...")
+            except Exception as e:
+                print(f"[!] Error during refinement: {e}")
+                time.sleep(1)
+        
+        print("[!] Refinement failed after 3 attempts.")
+        raise ValueError("Failed to refine script after 3 attempts. Please check logs.")
+
+
+    def translate_refined_script(self, captions: list[CaptionItem], targets: list[str]) -> list[CaptionItem]:
+        """
+        Translates the refined script to target languages.
+        Uses materials/prompts/translate_script.txt
+        """
+        prompt_file = self.prompts_dir / "translate_script.txt"
+        if not prompt_file.exists():
+            print(f"[!] Warning: Translate prompt not found at {prompt_file}. Using default.")
+            prompt_text = "Translate the script to English and Korean."
+        else:
+            prompt_text = prompt_file.read_text(encoding="utf-8")
+            
+        prompt = f"""
+        {prompt_text}
+        
+        # Input Data:
+        {json.dumps(captions, ensure_ascii=False)}
+        
+        # Targets: {', '.join(targets)}
+        """
+        
+        for attempt in range(3):
+            try:
+                print(f"[-] Translating refined script (Attempt {attempt+1}/3)...")
+                response = self.model.generate_content(prompt)
+                result = self._parse_json_response(response.text)
+                if result:
+                    return result
+                print("[!] Empty or invalid JSON received. Retrying...")
+            except Exception as e:
+                print(f"[!] Error during translation: {e}")
+                time.sleep(1)
+
+        print("[!] Translation failed after 3 attempts.")
+        raise ValueError("Failed to translate script after 3 attempts. Please check logs.")
+
+
 
 if __name__ == "__main__":
     import sys

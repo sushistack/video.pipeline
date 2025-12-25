@@ -108,3 +108,6 @@ dmypy.json
 # Models
 # ============================
 models
+
+materials/videos
+materials/simulated

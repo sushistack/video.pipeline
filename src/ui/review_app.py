@@ -20,6 +20,15 @@ sys.path.append(str(Path(__file__).parent))
 
 # Component Imports
 # We use local imports assuming they are in src/ui/components
+from components import extract_tab, review_tab, scenario_tab, audio_tab, subtitle_tab
+
+# Force reload to avoid caching issues
+importlib.reload(extract_tab)
+importlib.reload(review_tab)
+importlib.reload(scenario_tab)
+importlib.reload(audio_tab)
+importlib.reload(subtitle_tab)
+
 from components.extract_tab import render_extract_tab
 from components.review_tab import render_review_tab
 from components.scenario_tab import render_scenario_tab
