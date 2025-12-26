@@ -1,5 +1,0 @@
-<script>
-    <speaker1>안녕하세요! 오늘은 AWS IAM, 즉 Identity and Access Management에 대해 파헤쳐 볼 건데요. 클라우드 보안의 핵심이라고 하죠?</speaker1>
-    <speaker2>네, 맞습니다. AWS IAM은 AWS 리소스에 대한 접근 권한을 안전하게 관리하는 서비스입니다. 누가, 어떤 방식으로, 어떤 리소스에 접근할 수 있는지를 정의하죠.</speaker2>
-    <speaker3>네, 그렇군요 저도 처음 알았네요.</speaker3>
-</script>

@@ -74,7 +74,7 @@ sources = { torch = [
 ] }
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["ui_reflex"]
 
 [[tool.uv.index]]
 name = "pytorch-rocm"
