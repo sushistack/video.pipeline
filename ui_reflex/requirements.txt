@@ -1,0 +1,6 @@
+reflex==0.8.24.post1
+psutil
+-r ../worker/vendor/GPT-SoVITS/requirements.txt
+sudachipy
+sudachidict_core
+mutagen

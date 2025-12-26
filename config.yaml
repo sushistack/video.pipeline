@@ -12,74 +12,226 @@ tts:
 
 speakers:
   sato-aoi:
-    audio_type: wav
+    gender: female
     ref_text: '厳密でありつつ、柔軟なスケジュール管理、合理的な評価基準、明確な昇進ルート'
     ref_lang: ja
   kato-kaede:
-    audio_type: mp3
+    gender: female
     ref_text: '僕がそんなに子供じゃないって。私からしたら少年はまだまだ少年だぞ。うりうり。'
     ref_lang: ja
   suzuki-hina:
-    audio_type: mp3
+    gender: female
     ref_text: 'ハロー、ハッピーワールドの弦巻こころよ。 私たちは世界を笑顔にするためにバンドをやっているの。'
     ref_lang: ja
   takahashi-mei:
-    audio_type: wav
+    gender: female
     ref_text: '私は未来人とか宇宙人とか探してないし、 長ったらしい二つ名も持ってないし。'
     ref_lang: ja
   tanaka-yui:
-    audio_type: mp3
+    gender: female
     ref_text: '変わんないね。 二人の笑顔を見てると高校の頃を思い出すよ。 大丈夫だよ。ねねっちなら。'
     ref_lang: ja
   watanabe-rin:
-    audio_type: wav
+    gender: female
     ref_text: '気をつけてくださいね。 スバルくんに忘れられるようなことがあれば、 レムはスバルくんを殺して、自分も死にます。'
     ref_lang: ja
   saito-sakura:
-    audio_type: mp3
+    gender: female
     ref_text: '自称恋愛愚民、八代寧々です。 好きな人と今すぐ両思いになりたいです！'
     ref_lang: ja
   kobayashi-kokoro:
-    audio_type: wav
+    gender: female
     ref_text: '日が昇ってるうちは、あの橋のたもとでお客さんを待ってるけど。'
     ref_lang: ja
+  ito-mei:
+    gender: female
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
+  kobayashi-koharu:
+    gender: female
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
+  nakamura-akari:
+    gender: female
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
+  suzuki-himari:
+    gender: female
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
+  takahashi-tsumugi:
+    gender: female
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
+  tanaka-mio:
+    gender: female
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
   sato-haruto:
-    audio_type: mp3
+    gender: male
     ref_text: '人に嫌われたくなくて必死になってる。 でもお前に嫌だって言っても絶対。 誰にも渡さない。'
     ref_lang: ja
   suzuki-ren:
-    audio_type: mp3
+    gender: male
     ref_text: 'お前がこうやって一緒に寄り添う時間が少なくて寂しいって言うなら'
     ref_lang: ja
   takahashi-minato:
-    audio_type: mp3
+    gender: male
     ref_text: 'もしかしてキスでもされるって思った？ 残念。 口んとこに歯磨き粉ついてるから取ってやるよ。'
     ref_lang: ja
   tanaka-yuma:
-    audio_type: mp3
+    gender: male
     ref_text: 'どうしたの？ 君から抱きしめてくれるなんて。 どうもしない？ そんなわけないでしょ。'
     ref_lang: ja
   watanabe-sora:
-    audio_type: mp3
+    gender: male
     ref_text: '少し痛むだろうが 愛らしい膨らみの下 熱く脈打ってるこの場所に牙を立たせてくれ。'
     ref_lang: ja
   saito-asahi:
-    audio_type: mp3
+    gender: male
     ref_text: '自分から口づけた癖に 顔が真っ赤だよ。 どこまで理性が持つか ちょっと自信がないけど。'
     ref_lang: ja
+  ito-kaito:
+    gender: male
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
+  saito-minato:
+    gender: male
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
+  sato-ren:
+    gender: male
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
+  suzuki-haruki:
+    gender: male
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
+  tanaka-itsuki:
+    gender: male
+    ref_text: 'ノートジーピーティーへ ようこそ。リアルで しぜんな エーアイ おんせいを、ぜひ おためし ください。'
+    ref_lang: ja
   guwon:
-    audio_type: wav
+    gender: male
     ref_text: '오늘이라는 커다란 열매를 맺은 우리, 우리 역사에 대한 자긍심은 국가미래 발전에 원동력입니다.'
     ref_lang: ko
   gimjunsoo:
-    audio_type: wav
+    gender: male
     ref_text: '그런데 최근, 이 노키아가 휘청거리며 핀란드에서는 구조조정 붐이 일고 있다.'
     ref_lang: ko
+  choi-eunwoo:
+    gender: male
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  gim-doyun:
+    gender: male
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  jung-siwoo:
+    gender: male
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  lee-seojun:
+    gender: male
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  park-hajun:
+    gender: male
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
   gimsong:
-    audio_type: wav
+    gender: female
     ref_text: '이 단순한 진심은 학생들이 이뤄낸 놀라운 결과로 저희에게 돌아왔습니다.'
     ref_lang: ko
   mindasom:
-    audio_type: wav
+    gender: female
     ref_text: '특정 식습관이 뇌에 유해하다는 걸 안다고 해서 문제가 해결되진 않습니다. 그렇다면 음식의 유혹은'
     ref_lang: ko
+  cho-sia:
+    gender: female
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  choi-hayun:
+    gender: female
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  gim-seoa:
+    gender: female
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  jung-seoyun:
+    gender: female
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  kang-arin:
+    gender: female
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  lee-yeseo:
+    gender: female
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  lim-yuna:
+    gender: female
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  park-jia:
+    gender: female
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  yoon-chaewon:
+    gender: female
+    ref_text: '놋 지피티에 오신것을 환영합니다. 우리의 현실적이고 자연스러운 에이아이 음성을 탐험하세요.'
+    ref_lang: ko
+  amelia-williams:
+    gender: female
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  charlotte-jones:
+    gender: female
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  emma-johnson:
+    gender: female
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  evelyn-davis:
+    gender: female
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  isabella-garcia:
+    gender: female
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  mia-miller:
+    gender: female
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  olivia-smith:
+    gender: female
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  sophia-brown:
+    gender: female
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  james-johnson:
+    gender: male
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  liam-smith:
+    gender: male
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  noah-williams:
+    gender: male
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  oliver-brown:
+    gender: male
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en
+  theodore-jones:
+    gender: male
+    ref_text: 'Welcome to NoteGPT. Explore our realistic, natural AI voices.'
+    ref_lang: en

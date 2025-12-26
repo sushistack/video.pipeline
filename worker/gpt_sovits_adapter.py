@@ -4,6 +4,7 @@ import os
 import sys
 import shutil
 import logging
+import asyncio
 import subprocess
 import tempfile
 import re  # Added missing import
@@ -215,6 +216,146 @@ class GPTSoVITSAdapter:
                 # Cleanup Temp Text Files
                 if tf_ref_path.exists(): tf_ref_path.unlink()
                 if tf_tgt_path.exists(): tf_tgt_path.unlink()
+
+    async def async_generate_voice(
+        self, 
+        gpt_model_path: Path,
+        sovits_model_path: Path,
+        ref_audio_path: Path,
+        ref_text: str,
+        ref_language: str,
+        target_text: str,
+        target_language: str,
+        output_path: Path,
+        device: str = None,
+        speed_factor: float = 1.0,
+    ):
+        """
+        Async version of generate_voice that yields logs in real-time.
+        """
+        # Validate Inputs
+        if not gpt_model_path.exists():
+            raise FileNotFoundError(f"GPT Model not found: {gpt_model_path}")
+        if not sovits_model_path.exists():
+            raise FileNotFoundError(f"SoVITS Model not found: {sovits_model_path}")
+        if not ref_audio_path.exists():
+            raise FileNotFoundError(f"Ref Audio not found: {ref_audio_path}")
+
+        # Create Temp Files for Text
+        # Note: FILE OPERATIONS ARE BLOCKING. 
+        # For small text, it's negligible. ideally run in executor if very large.
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, encoding="utf-8", suffix=".txt") as tf_ref:
+            tf_ref.write(ref_text)
+            tf_ref_path = Path(tf_ref.name)
+            
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, encoding="utf-8", suffix=".txt") as tf_tgt:
+            tf_tgt.write(target_text)
+            tf_tgt_path = Path(tf_tgt.name)
+
+        # Temp directory context manager is blocking, so we handle manually or use it synchronously
+        temp_out_dir = tempfile.mkdtemp()
+        
+        try:
+            # Construct Command
+            cmd = [
+                self.python_exec,
+                "-u",
+                str(self.cli_script),
+                "--gpt_model", str(gpt_model_path),
+                "--sovits_model", str(sovits_model_path),
+                "--ref_audio", str(ref_audio_path),
+                "--ref_text", str(tf_ref_path),
+                "--ref_language", self._map_language(ref_language, is_target=False),
+                "--target_text", str(tf_tgt_path),
+                "--target_language", self._map_language(target_language, is_target=True),
+                "--output_path", str(temp_out_dir),
+                "--speed_factor", str(speed_factor)
+            ]
+            
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(self.vendor_dir) + os.pathsep + env.get("PYTHONPATH", "")
+
+            if device:
+                env["GPT_SOVITS_DEVICE"] = device
+            else:
+                env["GPT_SOVITS_DEVICE"] = "cpu"
+            
+            env["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+            env["gpt_path"] = str(gpt_model_path)
+            env["sovits_path"] = str(sovits_model_path)
+            env["cnhubert_base_path"] = str(self.vendor_dir / "GPT_SoVITS/pretrained_models/chinese-hubert-base")
+            env["bert_path"] = str(self.vendor_dir / "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large")
+            env["is_half"] = "False"
+            env["PYTHONUNBUFFERED"] = "1"
+
+            # Async Subprocess
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                cwd=self.vendor_dir,
+                env=env,
+            )
+
+            try:
+                # Stream stdout
+                while True:
+                    line = await process.stdout.readline()
+                    if not line:
+                        break
+                    
+                    try:
+                        decoded = line.decode().strip()
+                        if decoded:
+                            logger.info(decoded) # Print to console
+                            yield decoded
+                    except:
+                        pass
+                
+                await process.wait()
+            finally:
+                if process.returncode is None:
+                    try:
+                         process.terminate()
+                         await process.wait()
+                         logger.info("Process terminated by user request.")
+                    except Exception as e:
+                         logger.error(f"Failed to terminate process: {e}")
+            
+            if process.returncode != 0:
+                 yield f"[!] CLI Failed with exit code {process.returncode}"
+                 raise RuntimeError(f"GPT-SoVITS CLI Error (Exit Code {process.returncode})")
+            
+            # Check Output
+            generated_file = Path(temp_out_dir) / "output.wav"
+            if not generated_file.exists():
+                raise RuntimeError(f"CLI finished but output.wav not found.")
+            
+            # Move/Convert (Blocking operation, but usually fast enough)
+            if output_path.suffix.lower() == ".mp3":
+                convert_cmd = [
+                    "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(generated_file),
+                    "-codec:a", "libmp3lame", "-qscale:a", "2",
+                    str(output_path)
+                ]
+                proc = await asyncio.create_subprocess_exec(*convert_cmd)
+                await proc.wait()
+                if proc.returncode != 0:
+                     raise RuntimeError(f"FFmpeg failed with code {proc.returncode}")
+            else:
+                shutil.move(str(generated_file), str(output_path))
+            
+            yield ""
+            yield "============================================================================"
+            yield f"[+] Audio saved to {output_path.name}"
+            yield "============================================================================"
+            yield ""
+
+        finally:
+            # Cleanup
+            if tf_ref_path.exists(): tf_ref_path.unlink()
+            if tf_tgt_path.exists(): tf_tgt_path.unlink()
+            if os.path.exists(temp_out_dir): shutil.rmtree(temp_out_dir)
 
 if __name__ == "__main__":
     # Internal Test

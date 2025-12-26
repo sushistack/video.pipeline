@@ -1,0 +1,36 @@
+Convert the following script into a dedicated XML format for TTS generation in 'ko'.
+
+# Input Data (JSON sequence):
+{input_json}
+
+# Output Format (XML):
+<script>
+    <speaker1>Content</speaker1>
+    <speaker2>Content</speaker2>
+    <speaker3>Content</speaker3>
+    ...
+</script>
+
+# STRICT RULES:
+1. **Transliteration**: Convert ALL English words and Numbers into their pronunciation in 'ko'.
+   Examples:
+    - 'AWS IAM' -> '에이더블유에스 아이엠'
+    - 'Identity and Access Management' -> '아이덴티티 앤 액세스 매니지먼트'
+    - 'Web 3.0' -> '웹 삼점영'
+    - 'AI' -> '에이아이'
+    - 'Level 1' -> '레벨 원'
+    - 'No.1' -> '넘버 원'
+    - '2시' -> '두 시'
+    - '30분' -> '삼십 분'
+    - '2025년' -> '이천이십오 년'
+    - '12월 25일' -> '십이 월 이십오 일'
+    - '3개' -> '세 개'
+    - '1,000원' -> '천 원'
+    - 'GPT-4o' -> '지피티 포 오'
+    - 'API' -> '에이피아이'
+
+2. **Preservation**: **CRITICAL**: Do NOT summarize, verify, or change the meaning. Do NOT change any other words. Keep the meaning and structure exactly identical.
+3. **Structure**: Use the exact 'tag' provided in input as the XML tag name.
+4. **Validation**: Output MUST be a valid XML enclosed in <script> tags.
+
+Output ONLY the raw XML string. No markdown code blocks.

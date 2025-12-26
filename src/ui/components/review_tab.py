@@ -156,7 +156,7 @@ def render_review_tab(output_root: Path):
                 for i_col, lang in enumerate(active_langs):
                     with cols[i_col]:
                         if lang == "en":
-                            st.caption("🇬🇧 English")
+                            st.caption("🇺🇸 English")
                             new_vals["en"] = st.text_area("en", item["text_en"], key=f"{file_key}_en_{idx}", height=100, label_visibility="collapsed")
                         elif lang == "ko":
                             st.caption("🇰🇷 Korean")

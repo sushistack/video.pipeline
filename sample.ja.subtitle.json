@@ -1,0 +1,102 @@
+[
+    {
+        "start": "00:00:000",
+        "end": "00:02:232",
+        "speaker": "speaker1",
+        "text": "どうして遅くまで起きてたの？",
+        "kanjis": [
+            {
+                "kanji": "遅く",
+                "yomigana": "おそく"
+            },
+            {
+                "kanji": "起き",
+                "yomigana": "おき"
+            }
+        ]
+    },
+    {
+        "start": "00:02:232",
+        "end": "00:06:408",
+        "speaker": "speaker2",
+        "text": "ドラマを見始めたら止まらなくて、気づいたら夜中の2時だったんだ。",
+        "kanjis": [
+            {
+                "kanji": "見",
+                "yomigana": "み"
+            },
+            {
+                "kanji": "始め",
+                "yomigana": "はじめ"
+            },
+            {
+                "kanji": "止まら",
+                "yomigana": "とまら"
+            },
+            {
+                "kanji": "気づい",
+                "yomigana": "きづい"
+            },
+            {
+                "kanji": "夜中",
+                "yomigana": "よなか"
+            },
+            {
+                "kanji": "時",
+                "yomigana": "じ"
+            }
+        ]
+    },
+    {
+        "start": "00:06:408",
+        "end": "00:11:928",
+        "speaker": "speaker1",
+        "text": "それは眠いはずだよ。私は早く寝たのに、なぜか眠いんだよね。",
+        "kanjis": [
+            {
+                "kanji": "眠い",
+                "yomigana": "ねむい"
+            },
+            {
+                "kanji": "私",
+                "yomigana": "わたくし"
+            },
+            {
+                "kanji": "早く",
+                "yomigana": "はやく"
+            },
+            {
+                "kanji": "寝",
+                "yomigana": "ね"
+            },
+            {
+                "kanji": "眠い",
+                "yomigana": "ねむい"
+            }
+        ]
+    },
+    {
+        "start": "00:11:928",
+        "end": "00:15:408",
+        "speaker": "speaker2",
+        "text": "そういう日あるよね。多分体が疲れてるんじゃない？",
+        "kanjis": [
+            {
+                "kanji": "日",
+                "yomigana": "ひ"
+            },
+            {
+                "kanji": "多分",
+                "yomigana": "たぶん"
+            },
+            {
+                "kanji": "体",
+                "yomigana": "からだ"
+            },
+            {
+                "kanji": "疲れ",
+                "yomigana": "つかれ"
+            }
+        ]
+    }
+]

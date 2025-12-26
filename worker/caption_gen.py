@@ -145,12 +145,15 @@ class CaptionGenerator:
         {speaker_hint}
         
         Output a JSON array of objects with these fields:
-        - start (HH:MM:SS,mmm)
-        - end (HH:MM:SS,mmm)
-        - speaker (string, e.g. "speaker1")
-        - text_ja (transcription)
+        - start: timestamp in SRT format (HH:MM:SS,mmm) e.g., "00:00:05,230"
+        - end: timestamp in SRT format (HH:MM:SS,mmm) e.g., "00:00:08,450"
+        - speaker: string (e.g., "speaker1")
+        - text_ja: transcription
         
-        Output ONLY the raw JSON.
+        IMPORTANT: Use standard SRT timestamp format with HOURS:MINUTES:SECONDS,MILLISECONDS
+        Example: "00:01:23,456" means 1 minute, 23 seconds, and 456 milliseconds
+        
+        Output ONLY the raw JSON array.
         """
         response = self.model.generate_content([myfile, prompt])
         return self._parse_json_response(response.text)
@@ -264,71 +267,19 @@ class CaptionGenerator:
                 if content.startswith(":"): content = content[1:].strip()
             minified_input.append({"tag": spk, "text": content})
 
-        # Examples of transliteration based on target lang
-        examples_prompt = ""
-        if target_lang == "ko":
-            examples_prompt = """
-            - 'AWS IAM' -> '에이더블유에스 아이엠'
-            - 'Identity and Access Management' -> '아이덴티티 앤 액세스 매니지먼트'
-            - 'Web 3.0' -> '웹 삼점영'
-            - 'AI' -> '에이아이'
-            - 'Level 1' -> '레벨 원'
-            - 'No.1' -> '넘버 원'
-            - '2시' -> '두 시'
-            - '30분' -> '삼십 분'
-            - '2025년' -> '이천이십오 년'
-            - '12월 25일' -> '십이 월 이십오 일'
-            - '3개' -> '세 개'
-            - '1,000원' -> '천 원'
-            - 'GPT-4o' -> '지피티 포 오'
-            - 'API' -> '에이피아이'
-            """
-        elif target_lang == "ja":
-            examples_prompt = """
-            - 'AWS IAM' -> 'エーダブリューエス アイアム'
-            - '123' -> 'ひゃくにじゅうさん'
-            - '今日は' -> 'きょうは'
-            - '日本' -> 'にほん'
-            - 'AI' -> 'エーアイ'
-            - '2025年' -> 'にせんにじゅうごねん'
-            - '12月25日' -> 'じゅうにがつ にじゅうごにち'
-            - '1つ' -> 'ひとつ'
-            - '3人' -> 'さんにん'
-            - '1,000円' -> 'せんえん'
-            - 'GPT-4o' -> 'ジーピーティー フォー オー'
-            - 'API' -> 'エーピーアイ'
-            - 'App' -> 'アップ'
-            """
-        else:
-             examples_prompt = "- '100' -> 'one hundred'\n- 'No.1' -> 'number one'"
+        # Load prompt from materials/prompts
+        prompt_file = self.prompts_dir / f"scenario_refine_{target_lang}.txt"
+        if not prompt_file.exists():
+            print(f"[!] Warning: Scenario prompt for {target_lang} not found. Using English fallback.")
+            prompt_file = self.prompts_dir / "scenario_refine_en.txt"
+        
+        if not prompt_file.exists():
+             raise FileNotFoundError(f"Scenario prompt file not found: {prompt_file}")
 
-        # Dynamic Rules
-        preservation_rule = "2. **Preservation**: Do NOT change any other words. Keep the meaning and structure exactly identical."
-        if target_lang == "ja":
-             preservation_rule = "2. **Kanji Conversion**: Convert ALL Kanji characters to Hiragana readings. Convert English/Numbers to Katakana/Hiragana pronunciation."
-
-        prompt = f"""
-        Convert the following script into a dedicated XML format for TTS generation in '{target_lang}'.
-
-        # Input Data (JSON sequence):
-        {json.dumps(minified_input, ensure_ascii=False)}
-
-        # Output Format (XML):
-        <script>
-            <tag_name>Content</tag_name>
-            ...
-        </script>
-
-        # STRICT RULES:
-        1. **Transliteration**: Convert ALL English words and Numbers into their pronunciation in '{target_lang}'.
-           Examples:
-           {examples_prompt}
-        {preservation_rule}
-        3. **Structure**: Use the exact 'tag' provided in input as the XML tag name.
-        4. **Validation**: Output MUST be a valid XML enclosed in <script> tags.
-
-        Output ONLY the raw XML string. No markdown code blocks.
-        """
+        prompt_template = prompt_file.read_text(encoding="utf-8")
+        
+        # Safe replacement to avoid format() issues with other braces
+        prompt = prompt_template.replace("{input_json}", json.dumps(minified_input, ensure_ascii=False))
 
         # Retry logic
         for attempt in range(3):
@@ -481,6 +432,23 @@ class CaptionGenerator:
         raise ValueError("Failed to translate script after 3 attempts. Please check logs.")
 
 
+
+    def simple_transcribe(self, audio_path: Path, lang: str = "ja") -> str:
+        """Transcribe audio for reference text using Gemini"""
+        try:
+            myfile = genai.upload_file(audio_path)
+            while myfile.state.name == "PROCESSING":
+                time.sleep(1)
+                myfile = genai.get_file(myfile.name)
+            
+            prompt = f"Transcribe this audio in {lang}. Output ONLY the transcription text. Do not include timestamps or speaker labels."
+            response = self.model.generate_content([myfile, prompt])
+            if response.text:
+                return response.text.strip()
+            return ""
+        except Exception as e:
+            print(f"[!] Error transcribing {audio_path}: {e}")
+            return ""
 
 if __name__ == "__main__":
     import sys
