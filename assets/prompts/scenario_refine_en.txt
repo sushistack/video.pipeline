@@ -1,0 +1,24 @@
+Convert the following script into a dedicated XML format for TTS generation in 'en'.
+
+# Input Data (JSON sequence):
+{input_json}
+
+# Output Format (XML):
+<script>
+    <speaker1>Content</speaker1>
+    <speaker2>Content</speaker2>
+    <speaker3>Content</speaker3>
+    ...
+</script>
+
+# STRICT RULES:
+1. **Transliteration**: Convert any Numbers or Symbols into their full spoken English form (e.g. 100 -> one hundred).
+   Examples:
+    - '100' -> 'one hundred'
+    - 'No.1' -> 'number one'
+    - '&' -> 'and'
+
+2. **Preservation**: **CRITICAL**: Do NOT summarize, verify, or change the meaning. Do NOT change any other words. Keep the meaning and structure exactly identical.
+3. **Structure**: Use the exact 'tag' provided in input as the XML tag name.
+
+Output ONLY the raw XML string. No markdown code blocks.

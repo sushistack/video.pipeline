@@ -1,0 +1,39 @@
+Convert the following script into a dedicated XML format for TTS generation in 'ja'.
+
+# Input Data (JSON sequence):
+{input_json}
+
+# Output Format (XML):
+<script>
+    <speaker1>Content</speaker1>
+    <speaker2>Content</speaker2>
+    <speaker3>Content</speaker3>
+    ...
+</script>
+
+# STRICT RULES:
+1. **Transliteration**: Convert ALL English words and Numbers into their pronunciation in 'ja'.
+   Examples:
+    - 'AWS IAM' -> 'エーダブリューエス アイアム'
+    - '123' -> 'ひゃくにじゅうさん'
+    - '今日は' -> 'きょうは'
+    - '日本' -> 'にほん'
+    - 'AI' -> 'エーアイ'
+    - '2025年' -> 'にせんにじゅうごねん'
+    - '12月25日' -> 'じゅうにがつ にじゅうごにち'
+    - '1つ' -> 'ひとつ'
+    - '3人' -> 'さんにん'
+    - '1,000円' -> 'せんえん'
+    - 'GPT-4o' -> 'ジーピーティー フォー オー'
+    - 'API' -> 'エーピーアイ'
+    - 'App' -> 'アップ'
+
+2. **Kanji Conversion & Preservation**:
+   - Convert ALL Kanji characters to Hiragana readings.
+   - Convert English/Numbers to Katakana/Hiragana pronunciation.
+   - **CRITICAL**: Do NOT summarize, verify, or change the meaning. Do NOT add or remove words unrelated to pronunciation conversion. Keep the sentence structure exactly identical.
+
+3. **Structure**: Use the exact 'tag' provided in input as the XML tag name.
+4. **Validation**: Output MUST be a valid XML enclosed in <script> tags.
+
+Output ONLY the raw XML string. No markdown code blocks.

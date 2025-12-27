@@ -1,0 +1,130 @@
+{
+    "cloud_draft_cover": true,
+    "cloud_draft_sync": true,
+    "cloud_package_completed_time": "",
+    "draft_cloud_capcut_purchase_info": "",
+    "draft_cloud_last_action_download": false,
+    "draft_cloud_package_type": "",
+    "draft_cloud_purchase_info": "",
+    "draft_cloud_template_id": "",
+    "draft_cloud_tutorial_info": "",
+    "draft_cloud_videocut_purchase_info": "",
+    "draft_cover": "draft_cover.jpg",
+    "draft_deeplink_url": "",
+    "draft_enterprise_info": {
+        "draft_enterprise_extra": "",
+        "draft_enterprise_id": "",
+        "draft_enterprise_name": "",
+        "enterprise_material": []
+    },
+    "draft_fold_path": "C:/Users/USER/AppData/Local/CapCut/User Data/Projects/com.lveditor.draft/1220Goood",
+    "draft_id": "A95BA299-C318-4e61-9E58-3F5802127B6B",
+    "draft_is_ae_produce": false,
+    "draft_is_ai_packaging_used": false,
+    "draft_is_ai_shorts": false,
+    "draft_is_ai_translate": false,
+    "draft_is_article_video_draft": false,
+    "draft_is_cloud_temp_draft": false,
+    "draft_is_from_deeplink": "false",
+    "draft_is_invisible": false,
+    "draft_is_web_article_video": false,
+    "draft_materials": [
+        {
+            "type": 0,
+            "value": [
+                {
+                    "ai_group_type": "",
+                    "create_time": 1765680276,
+                    "duration": 10900000,
+                    "extra_info": "화면 녹화 중 2025-12-14 114435.mp4",
+                    "file_Path": "C:/Users/USER/Videos/화면 녹화/화면 녹화 중 2025-12-14 114435.mp4",
+                    "height": 1080,
+                    "id": "a6288fa8-3e82-4668-b74c-aedd474739ab",
+                    "import_time": 1766222338,
+                    "import_time_ms": 1766222337486043,
+                    "item_source": 1,
+                    "md5": "",
+                    "metetype": "video",
+                    "roughcut_time_range": {
+                        "duration": 10900000,
+                        "start": 0
+                    },
+                    "sub_time_range": {
+                        "duration": -1,
+                        "start": -1
+                    },
+                    "type": 0,
+                    "width": 1920
+                },
+                {
+                    "ai_group_type": "",
+                    "create_time": 1748268446,
+                    "duration": 240024000,
+                    "extra_info": "Bright Horizons.mp3",
+                    "file_Path": "C:/Users/USER/dev/capcut.material/Music/Bright Horizons.mp3",
+                    "height": 0,
+                    "id": "4fcc72f8-8493-446c-9bcd-bd73cc37bb0b",
+                    "import_time": 1766223091,
+                    "import_time_ms": 1766223090844043,
+                    "item_source": 1,
+                    "md5": "",
+                    "metetype": "music",
+                    "roughcut_time_range": {
+                        "duration": 240024000,
+                        "start": 0
+                    },
+                    "sub_time_range": {
+                        "duration": -1,
+                        "start": -1
+                    },
+                    "type": 0,
+                    "width": 0
+                }
+            ]
+        },
+        {
+            "type": 1,
+            "value": []
+        },
+        {
+            "type": 2,
+            "value": []
+        },
+        {
+            "type": 3,
+            "value": []
+        },
+        {
+            "type": 6,
+            "value": []
+        },
+        {
+            "type": 7,
+            "value": []
+        },
+        {
+            "type": 8,
+            "value": []
+        }
+    ],
+    "draft_materials_copied_info": [],
+    "draft_name": "1220Goood",
+    "draft_need_rename_folder": false,
+    "draft_new_version": "",
+    "draft_removable_storage_device": "",
+    "draft_root_path": "C:/Users/USER/AppData/Local/CapCut/User Data/Projects/com.lveditor.draft",
+    "draft_segment_extra_info": [],
+    "draft_timeline_materials_size_": 18327626,
+    "draft_type": "",
+    "draft_web_article_video_enter_from": "",
+    "tm_draft_cloud_completed": "",
+    "tm_draft_cloud_entry_id": -1,
+    "tm_draft_cloud_modified": 0,
+    "tm_draft_cloud_parent_entry_id": -1,
+    "tm_draft_cloud_space_id": -1,
+    "tm_draft_cloud_user_id": -1,
+    "tm_draft_create": 1766222326668539,
+    "tm_draft_modified": 1766735349667360,
+    "tm_draft_removed": 0,
+    "tm_duration": 3000000
+}

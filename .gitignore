@@ -1,0 +1,45 @@
+assets/external/
+*.db
+.states
+.web
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Reflex
+.web/
+assets/uploaded/
+assets/outputs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Models & Data
+*.pth
+*.ckpt
+models/
+data/
+outputs/
+
+# Logs
+*.log
+
+# Workspace
+workspace/
+
+.env
