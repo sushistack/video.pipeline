@@ -45,4 +45,21 @@ def install_system_dependencies(platform_mode, vendor_dir: Path):
     # Install API dependencies (fastapi uvicorn requests) and CLI deps (soundfile)
     print("    Installing adapter dependencies...")
     # Force numpy<2 to avoid compatibility issues with Numba/Librosa
-    run_cmd(f"{pip_base} fastapi uvicorn requests soundfile 'numpy<2' ffmpeg-python google-generativeai PyYAML sudachipy sudachidict_core streamlit")
+    run_cmd(f'{pip_base} fastapi uvicorn requests soundfile "numpy<2" ffmpeg-python google-genai PyYAML sudachipy sudachidict_core streamlit reflex mutagen python-mecab-ko python-mecab-ko-dic')
+
+    # Create eunjeon shim for g2pk2
+    create_eunjeon_shim(vendor_dir.parent / ".venv" / "Lib" / "site-packages")
+
+def create_eunjeon_shim(site_packages: Path):
+    """
+    Creates a 'eunjeon.py' shim in site-packages that redirects to python-mecab-ko.
+    This resolves the dependency issue where g2pk2 expects 'eunjeon' module.
+    """
+    shim_path = site_packages / "eunjeon.py"
+    if site_packages.exists() and not shim_path.exists():
+        print(f"[*] Creating eunjeon shim for g2pk2 at {shim_path}...")
+        try:
+            with open(shim_path, "w", encoding="utf-8") as f:
+                f.write("from mecab import MeCab as Mecab\n")
+        except Exception as e:
+            print(f"[!] Failed to create eunjeon shim: {e}")

@@ -1,1 +1,1 @@
-{"GPT": {"v1": "models/pretrained/s1v3.ckpt"}, "SoVITS": {}}
+{"GPT": {"v1": "d:\\video.pipeline\\models\\pretrained\\s1v3.ckpt", "v2": "d:\\video.pipeline\\models\\pretrained\\s1v3.ckpt"}, "SoVITS": {"v1": "d:\\video.pipeline\\models\\pretrained\\v2\\s2G488k.pth", "v2": "d:\\video.pipeline\\models\\pretrained\\v2Pro\\s2Gv2Pro.pth"}}

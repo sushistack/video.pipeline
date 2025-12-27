@@ -22,6 +22,10 @@ MODELS = {
     # Note: Using likely path based on repo structure. If fail, will need correction.
     "sv/pretrained_eres2netv2w24s4ep4.ckpt": "https://huggingface.co/lj1995/GPT-SoVITS/resolve/main/pretrained_models/sv/pretrained_eres2netv2w24s4ep4.ckpt",
 
+    # V3
+    "s1v3.ckpt": "https://huggingface.co/lj1995/GPT-SoVITS/resolve/main/s1v3.ckpt",
+    "s2Gv3.pth": "https://huggingface.co/lj1995/GPT-SoVITS/resolve/main/s2Gv3.pth",
+
     # V2Pro
     "v2Pro/s2Gv2Pro.pth": "https://huggingface.co/lj1995/GPT-SoVITS/resolve/main/v2Pro/s2Gv2Pro.pth",
     "v2Pro/s2Gv2ProPlus.pth": "https://huggingface.co/lj1995/GPT-SoVITS/resolve/main/v2Pro/s2Gv2ProPlus.pth",
@@ -47,6 +51,17 @@ def download_models(vendor_dir: Path):
         if not target_path.exists():
             print(f"    Downloading {rel_path}...")
             target_path.parent.mkdir(parents=True, exist_ok=True)
-            run_cmd(f"curl -L -o '{str(target_path)}' '{url}'")
+            run_cmd(f'curl -L -o "{str(target_path)}" "{url}"')
         else:
             print(f"    OK: {rel_path}")
+
+if __name__ == "__main__":
+    import sys
+    # Assume script is in worker/bootstrap/models.py
+    # We need a valid vendor_dir path to resolve project root correctly
+    # worker/bootstrap/ -> worker/vendor
+    current_file = Path(__file__).resolve()
+    worker_dir = current_file.parent.parent
+    vendor_dir = worker_dir / "vendor"
+    
+    download_models(vendor_dir)

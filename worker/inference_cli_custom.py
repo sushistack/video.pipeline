@@ -58,9 +58,9 @@ try:
     PROJECT_ROOT = WORKER_ROOT.parent
     PRETRAINED_ROOT = PROJECT_ROOT / "models" / "pretrained"
     
-    bert_path = GPT_SOVITS_INNER / "pretrained_models" / "chinese-roberta-wwm-ext-large"
-    cnhubert_path = GPT_SOVITS_INNER / "pretrained_models" / "chinese-hubert-base"
-    sv_model_path = GPT_SOVITS_INNER / "pretrained_models" / "sv" / "pretrained_eres2netv2w24s4ep4.ckpt"
+    bert_path = PRETRAINED_ROOT / "bert"
+    cnhubert_path = PRETRAINED_ROOT / "hubert"
+    sv_model_path = PRETRAINED_ROOT / "sv" / "pretrained_eres2netv2w24s4ep4.ckpt"
     
     v4_vocoder_path = PRETRAINED_ROOT / "gsv-v4-pretrained" / "vocoder.pth"
     
@@ -70,8 +70,8 @@ try:
     os.environ["v4_vocoder_path"] = str(v4_vocoder_path)
     
     # Default Paths to prevent init errors
-    default_gpt_path = GPT_SOVITS_INNER / "pretrained_models" / "s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"
-    default_sovits_path = GPT_SOVITS_INNER / "pretrained_models" / "s2G488k.pth"
+    default_gpt_path = PRETRAINED_ROOT / "s1v3.ckpt"
+    default_sovits_path = PRETRAINED_ROOT / "gsv-v4-pretrained" / "s2Gv4.pth"
     
     os.environ["gpt_path"] = str(default_gpt_path)
     os.environ["sovits_path"] = str(default_sovits_path)
@@ -213,12 +213,17 @@ def main():
     lang_map = {
         "zh": "中文", "en": "英文", "ja": "日文", "yue": "粤语",
         "auto": "多语种混合",
-        "ko": "한국어" 
+        "ko": "韩文" 
     }
     
     # Just pass through the args if they aren't in map (for Korean keys)
     ref_lang = lang_map.get(args.ref_language, args.ref_language)
-    target_lang = lang_map.get(args.target_language, args.target_language)
+    
+    # Special handling for Korean Target: Use Multilingual Mix (matches GPTSoVITSAdapter success case)
+    if args.target_language in ["ko", "한국어"]:
+        target_lang = "多语种混合"
+    else:
+        target_lang = lang_map.get(args.target_language, args.target_language)
 
     synthesize(
         gpt_model_path=args.gpt_model,

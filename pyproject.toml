@@ -57,6 +57,8 @@ dependencies = [
     "av>=11.0.0",
     "split-lang>=0.3.0",
     "mutagen>=1.40.0",
+    "reflex>=0.6.4",
+    "demucs>=4.0.0",
 ]
 
 [build-system]

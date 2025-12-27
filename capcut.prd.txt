@@ -1,0 +1,11 @@
+0. project 페이지에서 generate 버튼을 누르면 동작한다.
+1. materials/templates/capcut.draft.template.json, materials/templates/capcut.draft.meta.info.json 기반으로 파일을 생성한다.
+2. outputs/{project_name}/auidos/ja 의 모든 mp3 파일을 사용한다.
+3. outputs/{project_name}/simulated 의 모든 영상 파일을 사용한다.
+4. outputs/{project_name}/subtitles/synced/ja.json 파일을 자막을 만들 때 사용한다.
+5. 템플릿 파일을 기반으로 2,3,4 의 파일들을 이름 순서대로 각각 타임라인에 나열시킨다.
+6. 자막을 세팅할 때는 시간을 기준으로 타임라인상 위치와 길이를 설정해야 한다.
+7. ja.json 파일을 분석해서 일본어 자막을 생성할 때는 template 파일 위치에 적절하게 추가해야한다.
+8. ja.json 에는 요미가나가 있기 때문에 해당 한자를 추적 및 위치를 수학적으로 계산하여 적절한 위치에 위치 시켜야한다.
+9. 또한 자막을 세팅할 때, text 의 길이가 너무 길 경우(최대 15자) 자막을 분리해야한다.
+10. 자막은 최대 2줄까지 가능하며, 2줄을 넘어가는 경우, 시간을 분할해서 전처리하여 자막을 생성해야한다.

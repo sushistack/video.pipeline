@@ -14,8 +14,18 @@ def test_caption():
     output_dir = base_dir / "outputs/subtitles"
     
     if not test_audio.exists():
-        print(f"[!] Test audio not found: {test_audio}")
-        return
+        print(f"[!] Default test audio not found: {test_audio}")
+        # Try to find any mp3 in materials
+        try:
+            found_audios = list((base_dir / "materials").rglob("*.mp3"))
+            if found_audios:
+                test_audio = found_audios[0]
+                print(f"[*] Switching to available audio: {test_audio}")
+            else:
+                 print("[!] No audio files found in materials/ to test with.")
+                 return
+        except Exception:
+             return
 
     cg = CaptionGenerator()
     try:

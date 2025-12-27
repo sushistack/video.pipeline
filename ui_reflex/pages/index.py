@@ -48,6 +48,12 @@ def page() -> rx.Component:
                 "/subtitle",
                 "cyan"
             ),
+            _feature_card(
+                "🎥 Project",
+                "CapCut project generation",
+                "/project",
+                "indigo"
+            ),
             columns="3",
             spacing="4",
         ),

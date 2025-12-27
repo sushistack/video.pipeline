@@ -12,6 +12,9 @@ from components.layout import page_container, page_header
 from components.log_viewer import log_viewer
 
 
+from components.file_selector import project_selector
+
+
 def page() -> rx.Component:
     """Extract Tab - Caption Extraction Page"""
     return page_container([
@@ -29,75 +32,78 @@ def page() -> rx.Component:
             ),
         ),
         
-        # File Selection + Parameters
-        rx.grid(
-            # File Select
-            rx.vstack(
-                rx.text("Video/Audio File", weight="bold", size="3"),
-                rx.cond(
-                    ExtractState.available_files.length() > 0,
-                    rx.select(
-                        ExtractState.available_files,
-                        placeholder="Select a file...",
-                        value=ExtractState.selected_file,
-                        on_change=ExtractState.set_selected_file,
-                        size="3",
-                        disabled=ExtractState.is_extracting,  # Disable during extraction
-                    ),
-                    rx.text("No files found in materials/videos/", color="red", size="2"),
-                ),
-                rx.button(
-                    "🔄 Refresh Files",
-                    on_click=ExtractState.load_files,
-                    variant="soft",
-                    size="2",
-                    disabled=ExtractState.is_extracting,  # Disable during extraction
-                ),
-                rx.text(
-                    f"Found {ExtractState.available_files.length()} files",
-                    size="1",
-                    color_scheme="gray"
-                ),
-                align="start",
+        # Row 1: File Selection (Full Width)
+        rx.vstack(
+            rx.text("Video/Audio File", weight="bold"),
+            project_selector(
+                projects=ExtractState.available_files,
+                current_project=ExtractState.selected_file,
+                on_change_callback=ExtractState.set_selected_file,
+                on_reload_callback=ExtractState.load_files,
+                placeholder="Select a file...",
+                disabled=ExtractState.is_extracting,
             ),
-            
-            # Model Select
+             rx.text(
+                f"Found {ExtractState.available_files.length()} files",
+                size="1",
+                color_scheme="gray"
+            ),
+            width="100%",
+            align_items="start",
+            max_width="600px",
+        ),
+        
+        # Row 2: Model & Speaker Count (Two Columns)
+        rx.grid(
+            # Gemini Model
             rx.vstack(
-                rx.text("Gemini Model", weight="bold", size="3"),
+                rx.text("Gemini Model", weight="bold"),
                 rx.select(
                     ExtractState.model_options,
                     value=ExtractState.selected_model,
                     on_change=ExtractState.set_selected_model,
                     size="3",
-                    disabled=ExtractState.is_extracting,  # Disable during extraction
+                    width="100%",
+                    disabled=ExtractState.is_extracting,
                 ),
-                align="start",
+                width="100%",
+                align_items="start",
             ),
             
             # Speaker Count
             rx.vstack(
-                rx.text("Speaker Count", weight="bold", size="3"),
+                rx.text("Speakers", weight="bold"),
                 rx.select(
                     ExtractState.speaker_options,
                     value=ExtractState.selected_speakers,
                     on_change=ExtractState.set_selected_speakers,
                     size="3",
-                    disabled=ExtractState.is_extracting,  # Disable during extraction
+                    width="100%",
+                    disabled=ExtractState.is_extracting,
                 ),
-                align="start",
+                width="100%",
+                max_width="150px",
+                align_items="start",
             ),
             
-            columns="3",
+            columns="2",
             spacing="4",
+            width="100%",
+            max_width="600px",
         ),
-        
-        # Target Languages (Display Only)
-        rx.hstack(
-            rx.text("Target Languages:", weight="bold"),
-            rx.badge("🇯🇵 Japanese", color_scheme="blue"),
-            rx.badge("🇺🇸 English", color_scheme="green"),
-            rx.badge("🇰🇷 Korean", color_scheme="purple"),
-            spacing="3",
+
+        # Row 3: Target Languages
+        rx.vstack(
+            rx.text("Target Languages", weight="bold"),
+            rx.hstack(
+                rx.badge("🇯🇵 Japanese", color_scheme="blue", variant="solid", size="3"),
+                rx.badge("🇺🇸 English", color_scheme="green", variant="solid", size="3"),
+                rx.badge("🇰🇷 Korean", color_scheme="purple", variant="solid", size="3"),
+                spacing="3",
+            ),
+            width="100%",
+            align_items="start",
+            max_width="600px",
         ),
         
         rx.divider(),

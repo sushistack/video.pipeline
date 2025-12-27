@@ -7,9 +7,10 @@ import time
 import typing_extensions as typing
 import warnings
 
-# Suppress Google Generative AI deprecation warning
+# Suppress Google Generative AI deprecation warning (though we are migrating)
 warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import shutil
 import subprocess
 from pathlib import Path
@@ -57,8 +58,9 @@ class CaptionGenerator:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY not found.")
         
-        genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel(self.model_name)
+        genai_client = genai.Client(api_key=self.api_key)
+        self.client = genai_client
+        self.model_name = self.model_name # keeping attribute for reference
         
         # Initialize Sudachi if available
         if SUDACHI_AVAILABLE:
@@ -132,11 +134,16 @@ class CaptionGenerator:
         
         return None
     def _generate_base_captions(self, audio_path: Path, speaker_count: typing.Optional[int] = None) -> list[CaptionItem]:
-        # Upload
-        myfile = genai.upload_file(audio_path)
+        # Upload using new Client
+        print(f"    [*] Uploading {audio_path.name}...")
+        myfile = self.client.files.upload(file=str(audio_path))
+        
+        # Wait for processing
         while myfile.state.name == "PROCESSING":
             time.sleep(1)
-            myfile = genai.get_file(myfile.name)
+            myfile = self.client.files.get(name=myfile.name)
+            
+        print(f"    [+] File Ready: {myfile.name}")
             
         speaker_hint = f"There are exactly {speaker_count} speakers." if speaker_count else "Identify different speakers if possible (e.g., 'speaker1', 'speaker2')."
 
@@ -155,7 +162,11 @@ class CaptionGenerator:
         
         Output ONLY the raw JSON array.
         """
-        response = self.model.generate_content([myfile, prompt])
+        
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=[myfile, prompt]
+        )
         return self._parse_json_response(response.text)
 
     def _translate_captions(self, captions: list[CaptionItem], targets: list[str]) -> list[CaptionItem]:
@@ -176,7 +187,10 @@ class CaptionGenerator:
         """
         
         # Use text input only (faster/cheaper)
-        response = self.model.generate_content(prompt)
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt
+        )
         return self._parse_json_response(response.text)
 
     def _add_yomigana(self, captions: list[CaptionItem]) -> list[CaptionItem]:
@@ -285,7 +299,10 @@ class CaptionGenerator:
         for attempt in range(3):
             try:
                 print(f"[-] Generating XML Scenario for {target_lang} (Attempt {attempt+1}/3)...")
-                response = self.model.generate_content(prompt)
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt
+                )
                 
                 # Cleanup
                 result = response.text.strip()
@@ -382,7 +399,10 @@ class CaptionGenerator:
         for attempt in range(3):
             try:
                 print(f"[-] Refining script with {self.model_name} (Attempt {attempt+1}/3)...")
-                response = self.model.generate_content(prompt)
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt
+                )
                 result = self._parse_json_response(response.text)
                 if result:
                     return result
@@ -419,7 +439,10 @@ class CaptionGenerator:
         for attempt in range(3):
             try:
                 print(f"[-] Translating refined script (Attempt {attempt+1}/3)...")
-                response = self.model.generate_content(prompt)
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt
+                )
                 result = self._parse_json_response(response.text)
                 if result:
                     return result
@@ -436,13 +459,18 @@ class CaptionGenerator:
     def simple_transcribe(self, audio_path: Path, lang: str = "ja") -> str:
         """Transcribe audio for reference text using Gemini"""
         try:
-            myfile = genai.upload_file(audio_path)
+            print(f"    [*] Uploading for transcription: {audio_path.name}")
+            myfile = self.client.files.upload(file=str(audio_path))
+            
             while myfile.state.name == "PROCESSING":
                 time.sleep(1)
-                myfile = genai.get_file(myfile.name)
+                myfile = self.client.files.get(name=myfile.name)
             
             prompt = f"Transcribe this audio in {lang}. Output ONLY the transcription text. Do not include timestamps or speaker labels."
-            response = self.model.generate_content([myfile, prompt])
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[myfile, prompt]
+            )
             if response.text:
                 return response.text.strip()
             return ""

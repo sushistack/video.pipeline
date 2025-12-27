@@ -38,9 +38,11 @@ def navbar() -> rx.Component:
                 rx.link(rx.text("🎬 Scenario", **link_style), href="/scenario", underline="none"),
                 rx.link(rx.text("🎙️ Audio", **link_style), href="/audio", underline="none"),
                 rx.link(rx.text("📝 Subtitle", **link_style), href="/subtitle", underline="none"),
+                rx.link(rx.text("🎥 Project", **link_style), href="/project", underline="none"),
                 spacing="6",
-                margin_right="10px",
             ),
+            
+            rx.spacer(),
 
             align_items="center",
             width="100%",

@@ -67,10 +67,23 @@ def get_kanjis(text: str):
             # Convert Katakana Reading to Hiragana
             hira = "".join([chr(ord(c) - 96) if ('\u30a1' <= c <= '\u30f6') else c for c in read])
             
-            results.append({
-                "kanji": surf,
-                "yomigana": hira
-            })
+            # 1. Strip matching trailing Kana (Okurigana)
+            # Checks if surface and reading end with the same Hiragana character
+            while surf and hira and surf[-1] == hira[-1] and not ('\u4e00' <= surf[-1] <= '\u9fff'):
+                surf = surf[:-1]
+                hira = hira[:-1]
+
+            # 2. Strip matching leading Kana (Prefixes)
+            while surf and hira and surf[0] == hira[0] and not ('\u4e00' <= surf[0] <= '\u9fff'):
+                surf = surf[1:]
+                hira = hira[1:]
+            
+            # Only add if valid Kanji remains
+            if surf and any('\u4e00' <= c <= '\u9fff' for c in surf):
+                results.append({
+                    "kanji": surf,
+                    "yomigana": hira
+                })
             
     return results
 

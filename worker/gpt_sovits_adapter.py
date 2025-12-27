@@ -139,8 +139,8 @@ class GPTSoVITSAdapter:
                 env["gpt_path"] = str(gpt_model_path)
                 env["sovits_path"] = str(sovits_model_path)
                 # Also set cnhubert path just in case
-                env["cnhubert_base_path"] = str(self.vendor_dir / "GPT_SoVITS/pretrained_models/chinese-hubert-base")
-                env["bert_path"] = str(self.vendor_dir / "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large")
+                env["cnhubert_base_path"] = str(self.base_dir / "models/pretrained/hubert")
+                env["bert_path"] = str(self.base_dir / "models/pretrained/bert")
                 env["is_half"] = "False" # Use FP32 for CPU compatibility/safety
                 env["PYTHONUNBUFFERED"] = "1" # Force unbuffered output for real-time logging
 
@@ -283,8 +283,8 @@ class GPTSoVITSAdapter:
             env["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
             env["gpt_path"] = str(gpt_model_path)
             env["sovits_path"] = str(sovits_model_path)
-            env["cnhubert_base_path"] = str(self.vendor_dir / "GPT_SoVITS/pretrained_models/chinese-hubert-base")
-            env["bert_path"] = str(self.vendor_dir / "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large")
+            env["cnhubert_base_path"] = str(self.base_dir / "models/pretrained/hubert")
+            env["bert_path"] = str(self.base_dir / "models/pretrained/bert")
             env["is_half"] = "False"
             env["PYTHONUNBUFFERED"] = "1"
 

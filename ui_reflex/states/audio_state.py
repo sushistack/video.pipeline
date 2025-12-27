@@ -114,7 +114,7 @@ class AudioState(rx.State):
         if not rel_path:
             return {"exists": False, "name": "Configuration Error"}
             
-        full_path = PARENT_DIR / "worker/vendor/GPT-SoVITS/GPT_SoVITS/pretrained_models" / rel_path
+        full_path = PARENT_DIR / "models/pretrained" / rel_path
         return {
             "exists": full_path.exists(),
             "name": rel_path
@@ -127,7 +127,7 @@ class AudioState(rx.State):
         if not rel_path:
             return {"exists": False, "name": "Configuration Error"}
             
-        full_path = PARENT_DIR / "worker/vendor/GPT-SoVITS/GPT_SoVITS/pretrained_models" / rel_path
+        full_path = PARENT_DIR / "models/pretrained" / rel_path
         return {
             "exists": full_path.exists(),
             "name": rel_path
@@ -231,8 +231,8 @@ class AudioState(rx.State):
                 yield rx.toast.error("Invalid model configuration! Check model paths.")
                 return
 
-            gpt_path = PARENT_DIR / "worker/vendor/GPT-SoVITS/GPT_SoVITS/pretrained_models" / self.MODEL_MAPPINGS[self.selected_model]["gpt"]
-            sovits_path = PARENT_DIR / "worker/vendor/GPT-SoVITS/GPT_SoVITS/pretrained_models" / self.MODEL_MAPPINGS[self.selected_model]["sovits"]
+            gpt_path = PARENT_DIR / "models/pretrained" / self.MODEL_MAPPINGS[self.selected_model]["gpt"]
+            sovits_path = PARENT_DIR / "models/pretrained" / self.MODEL_MAPPINGS[self.selected_model]["sovits"]
             
             output_root = PARENT_DIR / "outputs" / self.selected_project
             audio_output_dir = output_root / "audios"
@@ -738,10 +738,15 @@ class SubtitleState(rx.State):
                         speaker = "Unknown"
                         text_content = raw_text
                         
-                        speaker_match = re.match(r"^\[(.*?)\]\s*(.*)", raw_text, re.DOTALL)
+                        # Handle colon separator
+                        speaker_match = re.match(r"^\[(.*?)\]:?\s*(.*)", raw_text, re.DOTALL)
                         if speaker_match:
-                            speaker = speaker_match.group(1)
-                            text_content = speaker_match.group(2)
+                            speaker = speaker_match.group(1).strip()
+                            text_content = speaker_match.group(2).strip()
+                            
+                            # Fallback if text starts with colon (regex edge case)
+                            if text_content.startswith(":"):
+                                text_content = text_content[1:].strip()
                             
                         entry = {
                             "start": start_json,
