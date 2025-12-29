@@ -408,6 +408,11 @@ class AudioState(rx.State):
                     # Output File
                     out_file = out_lang_dir / f"{idx+1:03d}_{voice_name}.mp3"
                     
+                    if out_file.exists():
+                        self.log(f"    Line {idx+1}: {voice_name} (Skipped - Exists)")
+                        processed_lines += 1
+                        continue
+                    
                     self.log(f"    Line {idx+1}: {voice_name}")
                     
                     try:

@@ -43,3 +43,5 @@ outputs/
 workspace/
 
 .env
+
+assets/audios/**/*.txt
