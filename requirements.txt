@@ -11,6 +11,8 @@ numba>=0.59.0
 google-genai
 python-dotenv
 mutagen
+pycapcut
+
 demucs
 fastapi
 -r ./external/GPT-SoVITS/requirements.txt
