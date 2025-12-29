@@ -90,6 +90,25 @@ def test_add_media_tracks(generator, mock_pycapcut):
     
     # Mock Script and Tracks
     mock_script = MagicMock()
+    # Ensure content dict exists for version sync
+    mock_script.content = {} 
+    
+    # Mock template file read
+    mock_template_content = json.dumps({
+        "new_version": "99.9.9",
+        "version": 12345,
+        "platform": {"app_version": "8.8.8"},
+        "last_modified_platform": {"app_version": "8.8.8"}
+    })
+    
+    with patch("builtins.open", new_callable=MagicMock) as mock_open:
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value.read.return_value = mock_template_content
+        mock_file.__enter__.return_value = mock_file
+        # complex mock to handle json.load reading from file object
+        # simpler: patch json.load?
+        pass # moving to separate test or wrapping call
+    
     generator.script = mock_script
     
     track_video = MagicMock()
@@ -212,4 +231,35 @@ def test_save_project(generator):
                  
                  expected_dst = generator.output_root / project_name / "capcut_draft"
                  assert result == expected_dst
+                 expected_dst = generator.output_root / project_name / "capcut_draft"
+                 assert result == expected_dst
                  mock_copy.assert_called_with(mock_src, expected_dst)
+
+def test_version_sync(generator):
+    """Test that version info is synced from template."""
+    # Mock template content
+    template_data = {
+        "new_version": "99.0.0",
+        "version": 12345,
+        "platform": {"app_version": "8.8.8"},
+        "last_modified_platform": {"app_version": "8.8.8"}
+    }
+    
+    # Mock script with content dict
+    mock_script = MagicMock()
+    mock_script.content = {}
+    generator.folder.create_draft.return_value = mock_script
+    
+    # Mock file existence and reading
+    with patch("pathlib.Path.exists", return_value=True), \
+         patch("builtins.open", new_callable=MagicMock) as mock_open, \
+         patch("json.load", return_value=template_data):
+         
+         generator._initialize_script("TestProject")
+         
+         # Verify updates
+         assert mock_script.content['new_version'] == "99.0.0"
+         assert mock_script.content['version'] == 12345
+         assert mock_script.content['platform']['app_version'] == "8.8.8"
+         assert mock_script.content['last_modified_platform']['app_version'] == "8.8.8"
+         mock_script.save.assert_called()

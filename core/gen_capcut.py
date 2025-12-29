@@ -35,6 +35,14 @@ class CapCutGenerator:
                 return path
         return None
 
+    
+    TEMPLATE_PATH = Path("assets/templates/capcut.draft.template.json")
+    
+    # CapCut Version Defaults
+    DEFAULT_NEW_VERSION = "151.0.0"  # Corresponds to new_version in draft
+    DEFAULT_APP_VERSION = "7.7.0"    # Corresponds to app_version in platform
+    DEFAULT_VERSION = 360000         # Corresponds to version int
+
     def _initialize_script(self, project_name: str):
         """Initialize or Create the Draft"""
         if not self.folder:
@@ -42,6 +50,36 @@ class CapCutGenerator:
         print(f"Creating draft '{project_name}' in {self.folder.folder_path}")
         self.script = self.folder.create_draft(project_name, width=1920, height=1080, fps=30, allow_replace=True)
         self.draft_name = project_name
+        
+        # [Sync Version Info]
+        # Read template to get compatible version numbers
+        # This prevents "Draft version too high/low" warnings in CapCut
+        if self.TEMPLATE_PATH.exists():
+            try:
+                import json
+                with open(self.TEMPLATE_PATH, 'r', encoding='utf-8') as f:
+                    tmpl = json.load(f)
+                
+                # Update script content
+                if self.script and hasattr(self.script, 'content'):
+                    self.script.content['new_version'] = tmpl.get('new_version', self.DEFAULT_NEW_VERSION)
+                    self.script.content['version'] = tmpl.get('version', self.DEFAULT_VERSION)
+                    
+                    # Update Platform info
+                    if 'platform' in tmpl:
+                         if 'platform' not in self.script.content:
+                             self.script.content['platform'] = {}
+                         self.script.content['platform']['app_version'] = tmpl['platform'].get('app_version', self.DEFAULT_APP_VERSION)
+                    
+                    if 'last_modified_platform' in tmpl:
+                         if 'last_modified_platform' not in self.script.content:
+                             self.script.content['last_modified_platform'] = {}
+                         self.script.content['last_modified_platform']['app_version'] = tmpl['last_modified_platform'].get('app_version', self.DEFAULT_APP_VERSION)
+                         
+                    # Save immediately after modifying meta
+                    self.script.save()
+            except Exception as e:
+                print(f"Warning: Failed to sync CapCut version info: {e}")
 
     def add_media_tracks(self, project_name: str):
         """Add Audio and Video tracks"""
