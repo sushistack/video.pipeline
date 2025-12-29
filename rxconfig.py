@@ -3,7 +3,7 @@ import sys
 import os
 
 # SET EXCLUSIONS BEFORE EVERYTHING
-os.environ["REFLEX_HOT_RELOAD_EXCLUDE_PATHS"] = "workspace:assets:external:core:venv:tests"
+os.environ["REFLEX_HOT_RELOAD_EXCLUDE_PATHS"] = "workspace:assets:external:core:.venv:tests"
 
 # Add current directory to Python path for absolute imports
 current_dir = os.path.dirname(os.path.abspath(__file__))

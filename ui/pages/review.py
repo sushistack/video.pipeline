@@ -56,4 +56,40 @@ def page() -> rx.Component:
             color_scheme="green",
         ),
         
+        # Floating Speaker Legend
+        rx.card(
+            rx.vstack(
+                rx.text("Speakers", size="1", weight="bold", color="gray"),
+                rx.foreach(
+                    ReviewState.speaker_legend_items,
+                    lambda item: rx.cond(
+                         item["name"] != "",
+                         rx.hstack(
+                            rx.box(
+                                width="12px", 
+                                height="12px", 
+                                border_radius="full", 
+                                bg=item["color"]
+                            ),
+                            rx.text(item["name"], size="1", weight="medium"),
+                            align="center",
+                            spacing="2"
+                        ),
+                        rx.fragment()
+                    )
+                ),
+                spacing="2",
+                align="start"
+            ),
+            position="fixed",
+            top="120px",  # Below header
+            right="20px",
+            z_index="100",
+            size="1",
+            max_width="200px",
+            max_height="80vh",
+            overflow_y="auto",
+            variant="surface",
+        ),
+        
     ], max_width="1400px")

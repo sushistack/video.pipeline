@@ -33,6 +33,10 @@ class ProjectState(rx.State):
                 if p.is_dir()
             ]
             self.available_projects = sorted(projects)
+            
+            # Auto-select first project
+            if self.available_projects and not self.selected_project:
+                self.set_selected_project(self.available_projects[0])
 
     def load_projects(self):
         """Reload project list (Alias for on_load)"""

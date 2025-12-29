@@ -45,6 +45,27 @@ class ReviewState(rx.State):
     def total_rows(self) -> int:
         """Total number of subtitle rows"""
         return len(self.subtitles)
+
+    # Color Palette for Speakers
+    COLORS: list[str] = [
+        "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD", 
+        "#D4A5A5", "#9B59B6", "#3498DB", "#E67E22", "#2ECC71",
+        "#F1C40F", "#1ABC9C", "#E74C3C", "#34495E", "#95A5A6"
+    ]
+
+    @rx.var
+    def speaker_color_map(self) -> dict[str, str]:
+        """Map each unique speaker to a color"""
+        speakers = sorted(list(set(row["speaker"] for row in self.subtitles if row["speaker"])))
+        mapping = {s: self.COLORS[i % len(self.COLORS)] for i, s in enumerate(speakers)}
+        mapping[""] = "var(--gray-6)" # Default for empty
+        return mapping
+
+    @rx.var
+    def speaker_legend_items(self) -> list[dict[str, str]]:
+        """List of speaker items for the legend"""
+        mapping = self.speaker_color_map
+        return [{"name": k, "color": v} for k, v in mapping.items()]
     
     def on_load(self):
         """Called when page loads"""
@@ -77,6 +98,29 @@ class ReviewState(rx.State):
             ]
             self.available_projects = sorted(projects)
             
+    def _assign_colors(self):
+        """Recalculate colors for all rows based on current speakers"""
+        # compute map first
+        speakers = sorted(list(set(row["speaker"] for row in self.subtitles if row.get("speaker"))))
+        mapping = {s: self.COLORS[i % len(self.COLORS)] for i, s in enumerate(speakers)}
+        mapping[""] = "var(--gray-6)"
+        
+        # update rows
+        new_subtitles = []
+        for row in self.subtitles:
+            s = row.get("speaker", "")
+            base_color = mapping.get(s, "var(--gray-6)")
+            row["speaker_color"] = base_color
+            
+            # If base color is a hex, we can append opacity
+            if base_color.startswith("#"):
+                row["speaker_bg_color"] = base_color + "22"
+            else:
+                row["speaker_bg_color"] = "transparent"
+                
+            new_subtitles.append(row)
+        self.subtitles = new_subtitles
+
     def load_project(self, project_name: str):
         """Load SRT files for selected project"""
         self.current_project = project_name
@@ -115,13 +159,26 @@ class ReviewState(rx.State):
             })
         
         self.subtitles = combined
+        self._assign_colors()
     
     def update_row(self, row_id: int, field: str, value: str):
         """Update a specific field in a subtitle row"""
+        need_recolor = False
         for row in self.subtitles:
             if row["id"] == row_id:
                 row[field] = value
+                if field == "speaker":
+                    need_recolor = True
                 break
+        
+        if need_recolor:
+            self._assign_colors()
+        else:
+            # Force update for non-speaker fields since we modified list in place
+            # Reflex needs reassignment to trigger update usually, but dict mutation inside list might be tracked if nested?
+            # Safer to reassign logic or rely on Reflex's delta tracking.
+            # To be safe:
+            self.subtitles = self.subtitles 
     
     def insert_row_after(self, row_id: int):
         """Insert a new empty row after the specified row, splitting time in half"""
@@ -133,57 +190,37 @@ class ReviewState(rx.State):
             print(f"[DEBUG] Row {row_id} not found!")
             return
         
-        print(f"[DEBUG] Found row at index {idx}")
         current_row = self.subtitles[idx]
-        print(f"[DEBUG] Current row: start={current_row['start']}, end={current_row['end']}")
         
         # Parse time stamps to milliseconds
         def srt_to_ms(timestamp: str) -> int:
-            """Convert standard SRT timestamp (HH:MM:SS,mmm) to milliseconds"""
-            print(f"[DEBUG] srt_to_ms input: '{timestamp}'")
-            if not timestamp or ',' not in timestamp:
-                print(f"[DEBUG] Invalid timestamp format, returning 0")
-                return 0
-            
+            if not timestamp or ',' not in timestamp: return 0
             time_part, ms_part = timestamp.split(',')
             h, m, s = map(int, time_part.split(':'))
-            ms = int(ms_part)
-            
-            result = (h * 3600 + m * 60 + s) * 1000 + ms
-            print(f"[DEBUG] Parsed: {h}h {m}m {s}s {ms}ms → {result}ms total")
-            return result
+            return (h * 3600 + m * 60 + s) * 1000 + int(ms_part)
         
         def ms_to_srt(ms: int) -> str:
-            """Convert milliseconds to standard SRT timestamp (HH:MM:SS,mmm)"""
-            print(f"[DEBUG] ms_to_srt input: {ms}ms")
-            
             hours = ms // 3600000
             ms %= 3600000
             minutes = ms // 60000
             ms %= 60000
             seconds = ms // 1000
             milliseconds = ms % 1000
-            
-            result = f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
-            print(f"[DEBUG] ms_to_srt output: '{result}'")
-            return result
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
         
         # Calculate middle time
         start_ms = srt_to_ms(current_row["start"])
         end_ms = srt_to_ms(current_row["end"])
         middle_ms = (start_ms + end_ms) // 2
-        print(f"[DEBUG] Calculated: start={start_ms}ms, end={end_ms}ms, middle={middle_ms}ms")
         
-        # Save original end time BEFORE modifying
+        # Save original end time
         original_end = ms_to_srt(end_ms)
-        print(f"[DEBUG] Original end saved: '{original_end}'")
         
-        # Update current row's end time to middle
+        # Update current row's end time
         new_current_end = ms_to_srt(middle_ms)
         self.subtitles[idx]["end"] = new_current_end
-        print(f"[DEBUG] Updated current row end to: '{new_current_end}'")
         
-        # Create new row with second half of time
+        # Create new row
         new_id = max(row["id"] for row in self.subtitles) + 1 if self.subtitles else 0
         new_start = ms_to_srt(middle_ms)
         new_row = {
@@ -195,18 +232,17 @@ class ReviewState(rx.State):
             "text_ko": "",
             "text_en": "",
         }
-        print(f"[DEBUG] New row: id={new_id}, start='{new_start}', end='{original_end}'")
         
-        # Insert after current row
+        # Insert
         self.subtitles.insert(idx + 1, new_row)
-        print(f"[DEBUG] Inserted new row at index {idx + 1}")
         
-        # Re-index IDs
+        # Re-index
         for i, row in enumerate(self.subtitles):
             row["id"] = i
-        print(f"[DEBUG] Re-indexed all rows")
         
-        yield rx.toast.success(f"Row split: {self.subtitles[idx]['start']} → {self.subtitles[idx]['end']} | {new_row['start']} → {new_row['end']}")
+        self._assign_colors()
+        
+        yield rx.toast.success(f"Row split: {self.subtitles[idx]['start']} -> {new_row['end']}")
     
     def mark_as_deleted(self, row_id: int):
         """Mark row as deleted (soft delete)"""
@@ -245,6 +281,8 @@ class ReviewState(rx.State):
         # Re-index IDs
         for i, row in enumerate(self.subtitles):
             row["id"] = i
+        
+        self._assign_colors()
         
         yield rx.toast.warning(f"Row permanently deleted")
     

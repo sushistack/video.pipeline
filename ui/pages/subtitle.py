@@ -98,16 +98,75 @@ def page() -> rx.Component:
         
         rx.divider(),
         
-        # Generate Button
+        # Generate Section with Confirmation
         rx.box(
-            rx.button(
-                "🎬 Generate Subtitles",
-                on_click=SubtitleState.generate_subtitles,
-                loading=SubtitleState.is_generating,
-                size="4",
-                width="100%",
-                variant="solid",
-                color_scheme="blue", # User requested specific style? 'classic' blue/primary
+            rx.alert_dialog.root(
+                rx.alert_dialog.trigger(
+                    rx.button(
+                        "🎬 Generate Subtitles",
+                        on_click=SubtitleState.open_confirm_dialog,
+                        size="4",
+                        width="100%",
+                        variant="solid",
+                        color_scheme="blue",
+                    ),
+                ),
+                rx.alert_dialog.content(
+                    rx.alert_dialog.title("Confirm Generation"),
+                    rx.alert_dialog.description(
+                        "The following languages are ready and will be processed:",
+                        size="2",
+                    ),
+                    
+                    # List All Languages with Status
+                    rx.vstack(
+                        rx.foreach(
+                            SubtitleState.lang_list,
+                            lambda data: rx.hstack(
+                                rx.text(data.emoji, font_size="1.5em"),
+                                rx.text(data.lang, weight="bold", color="var(--gray-12)"),
+                                rx.spacer(),
+                                rx.cond(
+                                    data.valid,
+                                    rx.badge("Ready", color_scheme="green", variant="solid"),
+                                    rx.badge("Not Ready", color_scheme="gray", variant="soft"),
+                                ),
+                                width="100%",
+                                align_items="center",
+                                padding="3",
+                                border_radius="md",
+                                background="var(--gray-3)",
+                                opacity=rx.cond(data.valid, "1", "0.5"), # Dim invalid items
+                            )
+                        ),
+                        width="100%",
+                        spacing="3", # Increased spacing
+                        margin_y="4",
+                        max_height="300px", # Increased max height
+                        overflow_y="auto",
+                    ),
+                    
+                    rx.text("Are you sure you want to proceed?", size="2", color="gray"),
+
+                    rx.flex(
+                        rx.alert_dialog.cancel(
+                            rx.button("Cancel", variant="soft", color_scheme="gray", on_click=SubtitleState.close_confirm_dialog),
+                        ),
+                        rx.alert_dialog.action(
+                            rx.button(
+                                "Confirm", 
+                                on_click=[SubtitleState.close_confirm_dialog, SubtitleState.generate_subtitles],
+                                variant="solid", 
+                                color_scheme="blue"
+                            ),
+                        ),
+                        spacing="3",
+                        margin_top="4",
+                        justify="end",
+                    ),
+                ),
+                open=SubtitleState.confirm_dialog_open,
+                on_open_change=SubtitleState.set_confirm_dialog_open,
             ),
             width="100%",
             padding_y="4"

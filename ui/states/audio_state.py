@@ -27,8 +27,8 @@ class AudioState(rx.State):
     selected_project: str = ""
     
     # Model selection
-    model_versions: list[str] = ["V4", "V2Pro", "V2ProPlus"]
-    selected_model: str = "V4"
+    model_versions: list[str] = [ "V2Pro", "V2ProPlus", "V4"]
+    selected_model: str = "V2ProPlus"
     
     # Model Mappings (Relative to pretrained_models)
     MODEL_MAPPINGS = {
@@ -59,8 +59,81 @@ class AudioState(rx.State):
     generation_logs: list[str] = []
     progress: int = 0
     progress_text: str = ""
+
     cancel_requested: bool = False
     
+    # Generated Audio Files
+    # Store as dict: {"ja": [{"name": "01_ja.mp3", "url": "/workspace/.../01_ja.mp3"}], ...}
+    generated_audios: dict[str, list[dict[str, str]]] = {"ja": [], "en": [], "ko": []}
+    
+    def load_generated_audios(self):
+        """Scan workspace for generated audio files"""
+        if not self.selected_project:
+            return
+            
+        base_dir = PARENT_DIR / "workspace" / self.selected_project / "audios"
+        new_audios = {"ja": [], "en": [], "ko": []}
+        
+        for lang in ["ja", "en", "ko"]:
+            lang_dir = base_dir / lang
+            files = []
+            if lang_dir.exists():
+                # Sort by creation time (newest first) or name? Usually name for ordered dialogue.
+                # Let's sort by name for now as they are likely numbered.
+                for f in sorted(lang_dir.glob("*.wav")): # Wav is usually intermediate, but let's check
+                     files.append({
+                        "name": f.name,
+                        "url": f"http://localhost:8000/workspace/{self.selected_project}/audios/{lang}/{f.name}",
+                        "confirm_delete": False
+                    })
+                # Check mp3 as well if we generate those
+                for f in sorted(lang_dir.glob("*.mp3")):
+                     files.append({
+                        "name": f.name,
+                        "url": f"http://localhost:8000/workspace/{self.selected_project}/audios/{lang}/{f.name}",
+                        "confirm_delete": False
+                    })
+            
+            # Sort by primitive number if possible (e.g. 1_ja.mp3)
+            def simple_sort(item):
+                name = item["name"]
+                match = re.search(r"(\d+)", name)
+                return int(match.group(1)) if match else 999999
+            
+            files.sort(key=simple_sort)
+            new_audios[lang] = files
+            
+        self.generated_audios = new_audios
+
+    def toggle_delete_confirm(self, filename: str, lang: str):
+        """Toggle delete confirmation for a file"""
+        files = self.generated_audios[lang]
+        new_files = []
+        for f in files:
+            new_f = f.copy()
+            if f["name"] == filename:
+                new_f["confirm_delete"] = not f.get("confirm_delete", False)
+            new_files.append(new_f)
+            
+        new_audios = self.generated_audios.copy()
+        new_audios[lang] = new_files
+        self.generated_audios = new_audios
+
+    def delete_audio(self, filename: str, lang: str):
+        """Hard delete audio file"""
+        if not self.selected_project:
+            return
+
+        file_path = PARENT_DIR / "workspace" / self.selected_project / "audios" / lang / filename
+        if file_path.exists():
+            try:
+                file_path.unlink()
+                rx.toast.success(f"Deleted {filename}")
+                self.load_generated_audios()
+            except Exception as e:
+                rx.toast.error(f"Failed to delete {filename}: {e}")
+
+
     def cancel_generation(self):
         """Request cancellation"""
         self.cancel_requested = True
@@ -68,6 +141,8 @@ class AudioState(rx.State):
     # Explicit setters
     def set_selected_project(self, value: str):
         self.selected_project = value
+        if value:
+            self.load_generated_audios()
     
     def set_selected_model(self, value: str):
         self.selected_model = value
@@ -147,6 +222,10 @@ class AudioState(rx.State):
                 if p.is_dir() and any(p.glob("scenario_*.xml"))
             ]
             self.available_projects = sorted(projects)
+            
+            # Auto-select first project in AudioState
+            if self.available_projects and not self.selected_project:
+                self.set_selected_project(self.available_projects[0])
     
     def log(self, message: str):
         """Add log message with overwrite for progress bars"""
@@ -368,6 +447,7 @@ class AudioState(rx.State):
             self.progress_text = "Done!"
             yield rx.toast.success("Audio generation completed!")
             self.log("[+] All tasks finished.")
+            self.load_generated_audios()
             
         except Exception as e:
             self.log(f"[CRITICAL] {str(e)}")
@@ -397,11 +477,61 @@ class ScenarioState(rx.State):
     # Example: {"ja": {"speaker1": {"gender": "female", "voice": "voice1.mp3"}}}
     selected_voices: dict[str, dict[str, dict[str, str]]] = {}
     
+    def _get_config_path(self) -> Path:
+        """Get path to speaker configuration file"""
+        if not self.selected_project:
+            return None
+        return PARENT_DIR / "workspace" / self.selected_project / "speaker_map.json"
+
+    def _load_config(self):
+        """Load speaker configuration from JSON"""
+        config_path = self._get_config_path()
+        if not config_path or not config_path.exists():
+            return
+
+        try:
+            import json
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            
+            # Merge loaded data with current detected speakers
+            for lang, speakers in data.items():
+                if lang not in self.selected_voices:
+                    self.selected_voices[lang] = {}
+                
+                for speaker, info in speakers.items():
+                    # Only calculate match if speaker exists in detecting list
+                    if speaker in self.speakers: 
+                        if speaker not in self.selected_voices[lang]:
+                             self.selected_voices[lang][speaker] = {"gender": "female", "voice": ""}
+                        
+                        # Restore saved values
+                        self.selected_voices[lang][speaker]["gender"] = info.get("gender", "female")
+                        self.selected_voices[lang][speaker]["voice"] = info.get("voice", "")
+            
+        except Exception as e:
+            print(f"Error loading config: {e}")
+
+    def _save_config(self):
+        """Save current configuration to JSON"""
+        config_path = self._get_config_path()
+        if not config_path:
+            return
+            
+        try:
+            import json
+            config_path.write_text(
+                json.dumps(self.selected_voices, indent=2, ensure_ascii=False),
+                encoding="utf-8"
+            )
+        except Exception as e:
+            print(f"Error saving config: {e}")
+
     def set_selected_project(self, value: str):
         """Set project and auto-detect speakers"""
         self.selected_project = value
         if value:
             self._detect_speakers()
+            self._load_config() # Load saved config after detection
     
     def _detect_speakers(self):
         """Parse SRT file and extract unique speakers"""
@@ -418,21 +548,25 @@ class ScenarioState(rx.State):
         # Parse SRT format
         for line in content.split('\n'):
             line = line.strip()
-            # Look for "[speaker]: text" pattern
-            if line.startswith('[') and ']:' in line:
-                speaker = line.split(']')[0][1:]  # Extract "speaker1" from "[speaker1]: text"
+            # Look for "[speaker]: text" or "[speaker] text" pattern
+            match = re.match(r"^\[(.*?)\](?::)?\s*.*", line)
+            if match:
+                speaker = match.group(1).strip()
                 speakers_set.add(speaker)
         
         # Sort and store
         self.speakers = sorted(speakers_set)
         
         # Initialize voice selections for detected speakers
+        # IMPORTANT: Initialize FRESH to avoid stale data from other projects, 
+        # but _load_config will overwrite relevant parts
+        self.selected_voices = {} 
         for lang in ["ja", "ko", "en"]:
             self.selected_voices[lang] = {
                 speaker: {"gender": "female", "voice": ""}
                 for speaker in self.speakers
             }
-    
+            
     def set_speaker_gender(self, lang: str, speaker_name: str, gender: str):
         """Set gender for a speaker in a specific language"""
         if lang not in self.selected_voices:
@@ -443,6 +577,7 @@ class ScenarioState(rx.State):
         self.selected_voices[lang][speaker_name]["gender"] = gender
         # Reset voice when gender changes
         self.selected_voices[lang][speaker_name]["voice"] = ""
+        self._save_config() # Save on change
     
     def set_speaker_voice(self, lang: str, speaker_name: str, voice: str):
         """Set voice file for a speaker in a specific language"""
@@ -452,6 +587,7 @@ class ScenarioState(rx.State):
             self.selected_voices[lang][speaker_name] = {"gender": "female", "voice": ""}
         
         self.selected_voices[lang][speaker_name]["voice"] = voice
+        self._save_config() # Save on change
     
     def on_load(self):
         """Load projects and voice files"""
@@ -463,6 +599,10 @@ class ScenarioState(rx.State):
                 if p.is_dir() and (p / "subtitles" / "ja.srt").exists()
             ]
             self.available_projects = sorted(projects)
+            
+            # Auto-select first project in ScenarioState
+            if self.available_projects and not self.selected_project:
+                self.set_selected_project(self.available_projects[0])
         
         # Load available voice files by language and gender
         audio_inputs = PARENT_DIR / "assets" / "audios"
@@ -543,15 +683,15 @@ class ScenarioState(rx.State):
                         continue
                         
                     text = line
+
                     spk = current_speaker
-                    if line.startswith("[") and "]:" in line:
-                         try:
-                             prefix, body = line.split("]:", 1)
-                             spk = prefix[1:].strip()
-                             text = body.strip()
-                             current_speaker = spk
-                         except:
-                             pass
+                    
+                    # Regex match both [speaker]: text and [speaker] text
+                    match = re.match(r"^\[(.*?)\](?::)?\s*(.*)", line)
+                    if match:
+                        spk = match.group(1).strip()
+                        text = match.group(2).strip()
+                        current_speaker = spk
                     
                     # Use generic tag for LLM generation
                     captions.append({"text": f"[{spk}]: {text}"})
@@ -630,6 +770,10 @@ class SubtitleState(rx.State):
             ]
             self.available_projects = sorted(projects)
             
+            # Auto-select first project in SubtitleState
+            if self.available_projects and not self.selected_project:
+                self.set_selected_project(self.available_projects[0])
+            
         if self.selected_project:
             self._load_resources()
             
@@ -644,7 +788,7 @@ class SubtitleState(rx.State):
         
         new_list = []
         
-        for lang, flag_emoji in [("en", "🇺🇸"), ("ko", "🇰🇷"), ("ja", "🇯🇵")]:
+        for lang, flag_emoji in [("ja", "🇯🇵"), ("en", "🇺🇸"), ("ko", "🇰🇷")]:
             lang_audio_dir = audios_root / lang
             audio_files = []
             if lang_audio_dir.exists():
@@ -675,6 +819,21 @@ class SubtitleState(rx.State):
             ))
             
         self.lang_list = new_list
+    
+    confirm_dialog_open: bool = False
+
+    def open_confirm_dialog(self):
+        """Open the confirmation dialog if project is selected"""
+        if not self.selected_project:
+            return rx.toast.error("Please select a project!")
+        self.confirm_dialog_open = True
+
+    def set_confirm_dialog_open(self, value: bool):
+        self.confirm_dialog_open = value
+
+    def close_confirm_dialog(self):
+        self.confirm_dialog_open = False
+
 
     async def generate_subtitles(self):
         """Generate formatted subtitles and JSON"""
@@ -727,10 +886,19 @@ class SubtitleState(rx.State):
                     end_srt = ms_to_srt(end_ms)
                     raw_text = srt_item["text"]
                     
-                    # Remove [Speaker] tag from SRT text? 
-                    # User request implies simply "srt block time adjustment". 
-                    # Assuming we keep original text but update time.
-                    srt_block = f"{idx+1}\n{start_srt} --> {end_srt}\n{raw_text}\n"
+                    # Remove [Speaker] tag for SRT text
+                    # Regex to match "[Speaker]: text" or "[Speaker] text"
+                    speaker_match = re.match(r"^\[(.*?)\]:?\s*(.*)", raw_text, re.DOTALL)
+                    cleaned_text = raw_text
+                    
+                    if speaker_match:
+                         # speaker_name = speaker_match.group(1).strip() # Unused here
+                         cleaned_text = speaker_match.group(2).strip()
+                         
+                         if cleaned_text.startswith(":"):
+                                cleaned_text = cleaned_text[1:].strip()
+                    
+                    srt_block = f"{idx+1}\n{start_srt} --> {end_srt}\n{cleaned_text}\n"
                     srt_output_blocks.append(srt_block)
                     
                     # 2. JSON Construction (Only needed for JA or if we want generic support later)
@@ -738,26 +906,17 @@ class SubtitleState(rx.State):
                         start_json = format_timestamp_json(start_ms)
                         end_json = format_timestamp_json(end_ms)
                         
-                        # Parse Speaker
+                        # Parse Speaker (Already done above essentially)
                         speaker = "Unknown"
-                        text_content = raw_text
-                        
-                        # Handle colon separator
-                        speaker_match = re.match(r"^\[(.*?)\]:?\s*(.*)", raw_text, re.DOTALL)
                         if speaker_match:
                             speaker = speaker_match.group(1).strip()
-                            text_content = speaker_match.group(2).strip()
-                            
-                            # Fallback if text starts with colon (regex edge case)
-                            if text_content.startswith(":"):
-                                text_content = text_content[1:].strip()
                             
                         entry = {
                             "start": start_json,
                             "end": end_json,
                             "speaker": speaker,
-                            "text": text_content,
-                            "kanjis": get_kanjis(text_content)
+                            "text": cleaned_text,
+                            "kanjis": get_kanjis(cleaned_text)
                         }
                         json_output.append(entry)
                     

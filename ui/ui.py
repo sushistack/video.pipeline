@@ -12,5 +12,12 @@ app.add_page(extract.page, route="/extract", title="Video Pipeline | Extract", o
 app.add_page(review.page, route="/review", title="Video Pipeline | Review", on_load=review.ReviewState.on_load)
 app.add_page(scenario.page, route="/scenario", title="Video Pipeline | Scenario", on_load=scenario.ScenarioState.on_load)
 app.add_page(audio.page, route="/audio", title="Video Pipeline | Audio", on_load=audio.AudioState.on_load)
+
+# Mount workspace directory to serve generated audio files
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+workspace_path = Path(__file__).parent.parent / "workspace"
+workspace_path.mkdir(exist_ok=True) # Ensure it exists
+app._api.mount("/workspace", StaticFiles(directory=str(workspace_path)), name="workspace")
 app.add_page(subtitle.page, route="/subtitle", title="Video Pipeline | Subtitle", on_load=subtitle.SubtitleState.on_load)
 app.add_page(project.page, route="/project", title="Video Pipeline | Project", on_load=project.ProjectState.on_load)

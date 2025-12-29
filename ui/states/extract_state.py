@@ -84,6 +84,10 @@ class ExtractState(rx.State):
                     files.append(f.name)
             
             self.available_files = sorted(files)
+            
+            # Auto-select first file if none selected
+            if self.available_files and not self.selected_file:
+                self.selected_file = self.available_files[0]
         else:
             self.available_files = []
     

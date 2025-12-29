@@ -19,105 +19,37 @@ def page() -> rx.Component:
                     on_reload_callback=ProjectState.load_projects,
                 ),
                 
-                # Validation UI
+                # Validation UI (Stats)
                 rx.cond(
                     ProjectState.selected_project,
-                    rx.vstack(
-                        # Stats Row
-                        rx.hstack(
-                            rx.card(
-                                rx.vstack(
-                                    rx.text("Audio Files", size="1", weight="medium"),
-                                    rx.text(ProjectState.audio_count, size="5", weight="bold"),
-                                ),
-                                size="1",
-                                width="100%"
-                            ),
-                            rx.card(
-                                rx.vstack(
-                                    rx.text("Subtitles", size="1", weight="medium"),
-                                    rx.text(ProjectState.subtitle_count, size="5", weight="bold"),
-                                    rx.cond(
-                                        ProjectState.is_valid,
-                                        rx.text("Matches Audio", size="1", color="green"),
-                                        rx.text("Mismatch", size="1", color="red"),
-                                    ),
-                                ),
-                                size="1",
-                                width="100%"
-                            ),
-                            rx.card(
-                                rx.vstack(
-                                    rx.text("Video Files", size="1", weight="medium"),
-                                    rx.text(ProjectState.video_count, size="5", weight="bold"),
-                                ),
-                                size="1",
-                                width="100%"
-                            ),
-                            width="100%",
-                            spacing="4",
-                        ),
-                        
-                        # File Lists
-                        rx.grid(
-                            # Audio List
+                    rx.hstack(
+                        rx.card(
                             rx.vstack(
-                                rx.text("Audio Files", weight="bold", size="2"),
-                                rx.vstack(
-                                    rx.foreach(
-                                        ProjectState.audio_files,
-                                        lambda f: rx.text(f, size="1", color="gray")
-                                    ),
-                                    height="150px",
-                                    overflow_y="auto",
-                                    border="1px solid #333",
-                                    padding="2",
-                                    width="100%",
-                                    bg="rgba(255,255,255,0.02)"
-                                ),
-                                width="100%",
+                                rx.text("Audio Files", size="1", weight="medium"),
+                                rx.text(ProjectState.audio_count, size="5", weight="bold"),
                             ),
-                            # Video List
-                            rx.vstack(
-                                rx.text("Video Files", weight="bold", size="2"),
-                                rx.vstack(
-                                    rx.foreach(
-                                        ProjectState.video_files,
-                                        lambda f: rx.text(f, size="1", color="gray")
-                                    ),
-                                    height="150px",
-                                    overflow_y="auto",
-                                    border="1px solid #333",
-                                    padding="2",
-                                    width="100%",
-                                    bg="rgba(255,255,255,0.02)"
-                                ),
-                                width="100%",
-                            ),
-                            columns="2",
-                            spacing="4",
-                            width="100%",
+                            size="1",
+                            width="100%"
                         ),
-                        
-                        # Validation Message
-                        rx.cond(
-                            ProjectState.is_valid,
-                            rx.callout(
-                                ProjectState.validation_message,
-                                icon="circle_check",
-                                color_scheme="green",
-                                width="100%"
+                        rx.card(
+                            rx.vstack(
+                                rx.text("Subtitles", size="1", weight="medium"),
+                                rx.text(ProjectState.subtitle_count, size="5", weight="bold"),
                             ),
-                            rx.callout(
-                                ProjectState.validation_message,
-                                icon="info",
-                                color_scheme="red",
-                                width="100%"
+                            size="1",
+                            width="100%"
+                        ),
+                        rx.card(
+                            rx.vstack(
+                                rx.text("Video Files", size="1", weight="medium"),
+                                rx.text(ProjectState.video_count, size="5", weight="bold"),
                             ),
+                            size="1",
+                            width="100%"
                         ),
                         width="100%",
-                        spacing="4"
-                    )
+                        spacing="4",
+                    ),
                 ),
 
                 rx.divider(),
@@ -134,11 +66,39 @@ def page() -> rx.Component:
                     size="4",
                     width="100%",
                     color_scheme="blue",
+                    margin_top="6",
                 ),
                 
                 spacing="4",
                 width="100%",
                 max_width="600px",
+            ),
+            
+            # Bottom Validation Status Bar (matches logic)
+            rx.cond(
+                ProjectState.selected_project,
+                rx.box(
+                     rx.cond(
+                         ProjectState.is_valid,
+                         rx.callout(
+                            "Audio Matches Subtitles: Project assets are synced and ready for generation.",
+                            icon="check",
+                            color_scheme="green",
+                            variant="surface",
+                            width="100%",
+                         ),
+                         rx.callout(
+                            f"Mismatch Detected: {ProjectState.validation_message}",
+                            icon="info",
+                            color_scheme="red",
+                            variant="surface",
+                            width="100%",
+                         ),
+                    ),
+                    width="100%",
+                    max_width="600px",
+                    padding_top="4",
+                )
             ),
         ]
     )

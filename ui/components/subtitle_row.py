@@ -98,6 +98,12 @@ def subtitle_row(row: dict) -> rx.Component:
                     on_change=lambda val: ReviewState.update_row(row_id, "speaker", val),
                     size="2",
                     width="100%",
+                    style={
+                        "borderColor": row["speaker_color"],
+                        "backgroundColor": row["speaker_bg_color"],
+                        "borderWidth": "2px",
+                        "transition": "all 0.3s ease",
+                    }
                 ),
                 
                 # Language Text Areas - Conditional display based on checkboxes
