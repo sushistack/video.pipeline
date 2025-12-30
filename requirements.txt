@@ -14,3 +14,5 @@ mutagen
 demucs
 fastapi
 -r ./external/GPT-SoVITS/requirements.txt
+ffmpeg-normalize
+pydub

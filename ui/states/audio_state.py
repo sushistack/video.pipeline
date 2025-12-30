@@ -471,6 +471,16 @@ class AudioState(rx.State):
 
                     except Exception as e:
                         self.log(f"[!] Generation Error: {e}")
+                        
+                    # Optimization Step
+                    if not self.cancel_requested and out_file.exists():
+                        try:
+                            async for log_line in audio_generator.optimize_audio(out_file):
+                                if log_line:
+                                    self.log(log_line)
+                                    yield 
+                        except Exception as e:
+                            self.log(f"[!] Optimization Error: {e}")
                     
                     processed_lines += 1
             
