@@ -96,7 +96,7 @@ def page() -> rx.Component:
 
                 width="100%",
                 align_items="start",
-                spacing="8",
+                spacing="9",
             ),
             
             # Right Column: Generated Audio Files
@@ -148,10 +148,15 @@ def page() -> rx.Component:
                                                 rx.audio(src=file["url"], controls=True, width="100%"),
                                                 spacing="2",
                                             ),
-                                            size="1"
+                                            size="1",
+                                            width="347px",
                                         )
                                     ),
                                     rx.text("No audio files generated yet.", color="gray", font_style="italic")
+                                ),
+                                rx.cond(
+                                    AudioState.has_more["ja"],
+                                    rx.button("Load More", on_click=lambda: AudioState.load_more("ja"), size="2", variant="ghost", width="100%"),
                                 ),
                                 spacing="2",
                             ),
@@ -199,6 +204,10 @@ def page() -> rx.Component:
                                     ),
                                     rx.text("No audio files generated yet.", color="gray", font_style="italic")
                                 ),
+                                rx.cond(
+                                    AudioState.has_more["en"],
+                                    rx.button("Load More", on_click=lambda: AudioState.load_more("en"), size="2", variant="ghost", width="100%"),
+                                ),
                                 spacing="2",
                             ),
                             type="always",
@@ -245,6 +254,10 @@ def page() -> rx.Component:
                                     ),
                                     rx.text("No audio files generated yet.", color="gray", font_style="italic")
                                 ),
+                                rx.cond(
+                                    AudioState.has_more["ko"],
+                                    rx.button("Load More", on_click=lambda: AudioState.load_more("ko"), size="2", variant="ghost", width="100%"),
+                                ),
                                 spacing="2",
                             ),
                             type="always",
@@ -272,6 +285,9 @@ def page() -> rx.Component:
             spacing="5",
             width="100%",
         ),
+
+
+        rx.divider(),
 
         # Generation Controls (Moved to bottom)
         rx.hstack(

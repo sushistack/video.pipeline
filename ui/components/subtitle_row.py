@@ -97,7 +97,7 @@ def subtitle_row(row: dict) -> rx.Component:
                     placeholder="Speaker...",
                     on_change=lambda val: ReviewState.update_row(row_id, "speaker", val),
                     size="2",
-                    width="100%",
+                    width="272px",
                     style={
                         "borderColor": row["speaker_color"],
                         "backgroundColor": row["speaker_bg_color"],

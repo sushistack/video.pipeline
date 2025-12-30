@@ -171,9 +171,9 @@ def footer() -> rx.Component:
         ),
         width="100%",
         height="300px",
-        background="linear-gradient(180deg, #111113 0%, #0A0A0C 100%)",
+        background="#1A1A1A",
         border_top="1px solid rgba(255, 255, 255, 0.05)",
-        margin_top="auto",
+        margin_top="100px",
     )
 
 
@@ -204,6 +204,7 @@ def page_container(children: list, max_width: str = "1400px") -> rx.Component:
             padding_y="6",
             margin_x="auto", # Explicit centering
             flex="1", # Allow content to grow
+            margin_top="32px", # Added spacing for navbar
         ),
         footer(),
         width="100%",

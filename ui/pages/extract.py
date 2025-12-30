@@ -90,6 +90,7 @@ def page() -> rx.Component:
             spacing="4",
             width="100%",
             max_width="600px",
+            margin_top="15px"
         ),
 
         # Row 3: Target Languages
@@ -104,6 +105,8 @@ def page() -> rx.Component:
             width="100%",
             align_items="start",
             max_width="600px",
+            margin_top="15px",
+            margin_bottom="10px",
         ),
         
         rx.divider(),
@@ -134,7 +137,6 @@ def page() -> rx.Component:
         
         # Log Viewer (Console Mirror) - Full Width
         rx.vstack(
-            rx.heading("📜 Console Logs", size="5"),
             log_viewer(ExtractState.extraction_logs),
             width="100%",
             spacing="3",

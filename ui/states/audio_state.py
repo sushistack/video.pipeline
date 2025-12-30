@@ -63,9 +63,33 @@ class AudioState(rx.State):
     cancel_requested: bool = False
     
     # Generated Audio Files
-    # Store as dict: {"ja": [{"name": "01_ja.mp3", "url": "/workspace/.../01_ja.mp3"}], ...}
-    generated_audios: dict[str, list[dict[str, str]]] = {"ja": [], "en": [], "ko": []}
+    # Store all files internally: {"ja": [...], ...}
+    _all_audios: dict[str, list[dict[str, str]]] = {"ja": [], "en": [], "ko": []}
     
+    # Pagination State
+    ITEMS_PER_PAGE: int = 10
+    displayed_counts: dict[str, int] = {"ja": 10, "en": 10, "ko": 10}
+    
+    @rx.var
+    def generated_audios(self) -> dict[str, list[dict[str, str]]]:
+        """Return sliced audio list for display"""
+        return {
+            lang: self._all_audios[lang][:self.displayed_counts[lang]]
+            for lang in ["ja", "en", "ko"]
+        }
+
+    @rx.var
+    def has_more(self) -> dict[str, bool]:
+        """Check if more items exist"""
+        return {
+            lang: len(self._all_audios[lang]) > self.displayed_counts[lang]
+            for lang in ["ja", "en", "ko"]
+        }
+
+    def load_more(self, lang: str):
+        """Increase displayed count for language"""
+        self.displayed_counts[lang] += self.ITEMS_PER_PAGE
+
     def load_generated_audios(self):
         """Scan workspace for generated audio files"""
         if not self.selected_project:
@@ -103,11 +127,13 @@ class AudioState(rx.State):
             files.sort(key=simple_sort)
             new_audios[lang] = files
             
-        self.generated_audios = new_audios
+        self._all_audios = new_audios
+        # Reset counts on reload? Or keep? Reset seems safer for clean state.
+        self.displayed_counts = {"ja": self.ITEMS_PER_PAGE, "en": self.ITEMS_PER_PAGE, "ko": self.ITEMS_PER_PAGE}
 
     def toggle_delete_confirm(self, filename: str, lang: str):
         """Toggle delete confirmation for a file"""
-        files = self.generated_audios[lang]
+        files = self._all_audios[lang]
         new_files = []
         for f in files:
             new_f = f.copy()
@@ -115,9 +141,9 @@ class AudioState(rx.State):
                 new_f["confirm_delete"] = not f.get("confirm_delete", False)
             new_files.append(new_f)
             
-        new_audios = self.generated_audios.copy()
+        new_audios = self._all_audios.copy()
         new_audios[lang] = new_files
-        self.generated_audios = new_audios
+        self._all_audios = new_audios
 
     def delete_audio(self, filename: str, lang: str):
         """Hard delete audio file"""
@@ -175,12 +201,12 @@ class AudioState(rx.State):
     def target_langs(self) -> list[str]:
         """Get target languages"""
         langs = []
+        if self.gen_ja:
+            langs.append("ja")
         if self.gen_en:
             langs.append("en")
         if self.gen_ko:
             langs.append("ko")
-        if self.gen_ja:
-            langs.append("ja")
         return langs
     
     @rx.var
