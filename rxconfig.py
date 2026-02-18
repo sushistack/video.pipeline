@@ -5,10 +5,13 @@ import os
 # SET EXCLUSIONS BEFORE EVERYTHING
 os.environ["REFLEX_HOT_RELOAD_EXCLUDE_PATHS"] = "workspace:assets:external:core:.venv:tests"
 
-# Suppress AMD GPU warnings
-os.environ["HIP_LOG_LEVEL"] = "3"  # 0=debug, 1=info, 2=warn, 3=error, 4=fatal
-os.environ["PYTHONWARNINGS"] = "ignore::UserWarning"
-os.environ["AMD_LOG_LEVEL"] = "3"  # Suppress AMD driver warnings
+# Suppress AMD GPU warnings (set to maximum level)
+os.environ["HIP_LOG_LEVEL"] = "4"  # Only fatal errors
+os.environ["AMD_LOG_LEVEL"] = "4"
+os.environ["ROCM_LOG_LEVEL"] = "4"
+os.environ["HSA_LOG_LEVEL"] = "4"
+os.environ["PAL_LOG_LEVEL"] = "4"
+os.environ["PYTHONWARNINGS"] = "ignore"
 
 # Add current directory to Python path for absolute imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
