@@ -15,6 +15,17 @@ from components.file_selector import project_selector
 
 def prompt_card(prompt_data: dict, index: int) -> rx.Component:
     """Create a card for a single image prompt"""
+    
+    def copy_prompt_with_metadata(prompt_field: str):
+        """Copy prompt with title and aspect ratio metadata"""
+        return rx.set_clipboard(
+            rx.Var.create(
+                f"[{ImagePrompterState.content_title}]\n" +
+                f"Aspect Ratio: 16:9\n\n" +
+                f"{prompt_data.get(prompt_field, '')}"
+            ).to_string()
+        )
+    
     return rx.accordion.item(
         header=rx.hstack(
             rx.badge(f"#{index + 1}", color_scheme="gray", variant="solid"),
@@ -43,8 +54,8 @@ def prompt_card(prompt_data: dict, index: int) -> rx.Component:
                         variant="ghost",
                         size="1",
                         color_scheme="gray",
-                        on_click=lambda: rx.set_clipboard(prompt_data.get("image_prompt", "")),
-                        tooltip="Copy image prompt 1",
+                        on_click=copy_prompt_with_metadata("image_prompt"),
+                        tooltip="Copy with title & aspect ratio",
                     ),
                     justify="between",
                     align_items="center",
@@ -73,8 +84,8 @@ def prompt_card(prompt_data: dict, index: int) -> rx.Component:
                         variant="ghost",
                         size="1",
                         color_scheme="gray",
-                        on_click=lambda: rx.set_clipboard(prompt_data.get("image_prompt_2", "")),
-                        tooltip="Copy image prompt 2",
+                        on_click=copy_prompt_with_metadata("image_prompt_2"),
+                        tooltip="Copy with title & aspect ratio",
                     ),
                     justify="between",
                     align_items="center",
