@@ -4,7 +4,6 @@ import os
 import sys
 import json
 import asyncio
-import aiohttp
 from pathlib import Path
 from typing import Callable
 from dotenv import load_dotenv
@@ -20,187 +19,28 @@ from google.genai import types
 
 class ImagePromptGenerator:
     """
-    Generates high-quality image prompts for video scenes based on narration scripts.
-    
-    Features:
-    - Reads narration script JSON (04.narration_final.json)
-    - Generates detailed image prompts for each section
-    - Maintains visual continuity between sections
-    - Optimized for AI image generation models
+    Generates image prompts for video scenes based on narration scripts.
     """
-    
+
     def __init__(self, workspace_dir: Path | None = None):
         self.base_dir = Path(__file__).resolve().parent.parent
         self.workspace_dir = workspace_dir or (self.base_dir / "workspace")
-        
+
         # API Keys
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
         if not self.gemini_api_key:
             raise ValueError("GEMINI_API_KEY not found in .env")
-        
+
         # Initialize Gemini client
         self.gemini_client = genai.Client(api_key=self.gemini_api_key)
-        self.gemini_model = "gemini-2.0-flash"  # Stable model
-        
-        # Prompts directory
-        self.prompts_dir = self.base_dir / "assets" / "prompts"
-        
+        self.gemini_model = "gemini-2.0-flash"
+
     def log(self, message: str, callback: Callable[[str], None] | None = None):
         """Log message with optional callback"""
         print(message)
         if callback:
             callback(message)
-    
-    async def generate_image_prompts(
-        self,
-        script_path: Path | None = None,
-        project_id: str | None = None,
-        log_callback: Callable[[str], None] | None = None,
-        generate_video_prompts: bool = True
-    ) -> list[dict]:
-        """
-        Generate image prompts for all sections in the narration script.
 
-        Args:
-            script_path: Path to 04.narration_final.json
-            project_id: Project ID to find script if path not provided
-            log_callback: Optional callback for logging
-            generate_video_prompts: Also generate video prompts
-
-        Returns:
-            List of image prompt dictionaries
-        """
-        self.log("[-] Loading narration script...", log_callback)
-        
-        try:
-            # Find script path
-            if script_path is None:
-                if project_id:
-                    script_path = self.workspace_dir / project_id / "scripts" / "04.narration_final.json"
-                else:
-                    # Find latest script
-                    for project_dir in sorted(self.workspace_dir.glob("project_*"), reverse=True):
-                        script_path = project_dir / "scripts" / "04.narration_final.json"
-                        if script_path.exists():
-                            break
-            
-            if not script_path or not script_path.exists():
-                raise FileNotFoundError(f"Script not found: {script_path}")
-            
-            # Load script
-            with open(script_path, "r", encoding="utf-8") as f:
-                script_data = json.load(f)
-            
-            self.log(f"[+] Loaded script: {script_path.name} ({len(script_data)} sections)", log_callback)
-            
-            # Generate prompts for each section
-            image_prompts = []
-            previous_context = ""
-
-            for idx, section in enumerate(script_data):
-                self.log(f"[-] Generating prompt for section {idx + 1}/{len(script_data)}: {section.get('title', 'Unknown')}", log_callback)
-
-                prompt_data = await self._generate_section_prompt(
-                    section=section,
-                    section_index=idx,
-                    total_sections=len(script_data),
-                    previous_context=previous_context,
-                    log_callback=log_callback
-                )
-
-                # Generate video prompt if requested
-                if generate_video_prompts:
-                    self.log(f"    [-] Generating video prompt for section {idx + 1}...", log_callback)
-                    video_prompt = await self._generate_video_prompt(
-                        section=section,
-                        image_prompt_data=prompt_data,
-                        section_index=idx,
-                        total_sections=len(script_data),
-                        previous_context=previous_context,
-                        log_callback=log_callback
-                    )
-                    prompt_data["video_prompt"] = video_prompt
-                    
-                    # Generate multi-angle camera prompt
-                    self.log(f"    [-] Generating multi-angle camera prompt for section {idx + 1}...", log_callback)
-                    multi_angle_prompt = await self._generate_multi_angle_camera_prompt(
-                        section=section,
-                        image_prompt_data=prompt_data,
-                        section_index=idx,
-                        total_sections=len(script_data),
-                        log_callback=log_callback
-                    )
-                    prompt_data["multi_angle_camera_prompt"] = multi_angle_prompt
-
-                image_prompts.append(prompt_data)
-
-                # Update context for next section (continuity)
-                previous_context = self._build_context(section, prompt_data)
-
-                await asyncio.sleep(0.5)  # Rate limiting
-
-            # Save image prompts with all data
-            output_path = script_path.parent.parent / "prompts" / "05.image_prompts.json"
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(image_prompts, f, indent=2, ensure_ascii=False)
-
-            # Save individual prompt text files
-            image_prompt_file = output_path.parent / "image.prompt.txt"
-            video_prompt_file = output_path.parent / "video.prompt.txt"
-            
-            # Write image prompts
-            with open(image_prompt_file, "w", encoding="utf-8") as f:
-                for idx, prompt_data in enumerate(image_prompts, 1):
-                    f.write(f"=== SECTION {idx}/{len(image_prompts)}: {prompt_data.get('section_title', 'Unknown')} ===\n\n")
-                    f.write(f"{prompt_data.get('image_prompt', '')}\n\n")
-                    f.write("-" * 80 + "\n\n")
-            
-            # Write video prompts (video_prompt + multi_angle_camera_prompt)
-            with open(video_prompt_file, "w", encoding="utf-8") as f:
-                for idx, prompt_data in enumerate(image_prompts, 1):
-                    f.write(f"=== SECTION {idx}/{len(image_prompts)}: {prompt_data.get('section_title', 'Unknown')} ===\n\n")
-                    
-                    # Video prompt
-                    video_prompt = prompt_data.get("video_prompt", {})
-                    if isinstance(video_prompt, dict):
-                        f.write(f"[VIDEO PROMPT]\n{video_prompt.get('video_prompt', '')}\n\n")
-                        f.write(f"Camera Directions: {', '.join(video_prompt.get('camera_directions', []))}\n")
-                        f.write(f"Motion: {video_prompt.get('motion_type', 'N/A')}\n")
-                        f.write(f"Transitions: {video_prompt.get('transition_style', 'N/A')}\n")
-                        f.write(f"Duration: {video_prompt.get('video_duration', 'N/A')}\n\n")
-                    
-                    # Multi-angle camera prompt
-                    multi_angle = prompt_data.get("multi_angle_camera_prompt", "")
-                    if multi_angle:
-                        f.write(f"[MULTI-ANGLE CAMERA PROMPT]\n{multi_angle}\n\n")
-                    
-                    f.write("-" * 80 + "\n\n")
-
-            # Log what was saved
-            self.log(f"[+] Image prompts saved: {output_path}", log_callback)
-            self.log(f"    📄 Total sections: {len(image_prompts)}", log_callback)
-            
-            # Count what's included
-            has_video = sum(1 for p in image_prompts if p.get("video_prompt"))
-            has_multi_angle = sum(1 for p in image_prompts if p.get("multi_angle_camera_prompt"))
-            
-            if has_video:
-                self.log(f"    🎬 Video prompts: {has_video}/{len(image_prompts)}", log_callback)
-            if has_multi_angle:
-                self.log(f"    🎥 Multi-angle camera prompts: {has_multi_angle}/{len(image_prompts)}", log_callback)
-            
-            self.log(f"    💾 File size: {output_path.stat().st_size:,} bytes", log_callback)
-            self.log(f"    📝 Image prompts text: {image_prompt_file}", log_callback)
-            self.log(f"    🎬 Video prompts text: {video_prompt_file}", log_callback)
-
-            return image_prompts
-            
-        except Exception as e:
-            self.log(f"[!] Image prompt generation failed: {e}", log_callback)
-            raise
-    
     async def _generate_section_prompt(
         self,
         section: dict,
