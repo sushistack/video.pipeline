@@ -163,7 +163,7 @@ class ImagePromptGenerator:
         Build the prompt request for Gemini API.
         """
         return f"""
-You are an expert AI image prompt engineer for video production. Create keyword-focused image prompts.
+You are an expert AI image prompt engineer for storytelling video production. Create image prompts focused on CHARACTERS and BACKGROUNDS for visual narrative.
 
 **CRITICAL: ALL OUTPUT MUST BE IN ENGLISH ONLY.**
 
@@ -177,25 +177,46 @@ You are an expert AI image prompt engineer for video production. Create keyword-
 ## Context
 {previous_context if previous_context else "First section."}
 
-## Keyword-First Prompt Structure
+## Storytelling Image Prompt Structure
 
-**Use comma-separated keywords, not full sentences.**
+**Focus: CHARACTER + BACKGROUND for visual storytelling**
 
-Format: `[SUBJECT KEYWORDS], [SCENE KEYWORDS], [TECHNICAL KEYWORDS], [MOOD KEYWORDS]`
+Format: `[CHARACTER KEYWORDS], [BACKGROUND KEYWORDS], [COMPOSITION KEYWORDS], [MOOD KEYWORDS]`
 
-### Keyword Categories:
+### Keyword Categories (Prioritize Character & Background):
 
-1. **SUBJECT** (3-5 keywords): physical traits, clothing, expression, pose
-   - Example: "tall humanoid, pale white skin, extremely long arms, sparse white hair, sharp jawline"
+1. **CHARACTER/ SUBJECT** (5-8 keywords): This is the MOST IMPORTANT element
+   - Physical traits: age, gender, height, build, skin tone, hair style/color, eye color
+   - Clothing: specific outfit, colors, textures, accessories, shoes
+   - Expression: facial expression, emotional state, eye direction
+   - Pose: body posture, hand position, action, gesture
+   - Position: where in frame (center, left, right, foreground, background)
+   - Example: "tall humanoid male, 2.4 meters, emaciated build, alabaster white skin, no pigmentation, extremely long arms past knees, sparse white hair matted, sharp angular jawline, tattered gray fabric draped over shoulder, center frame, facing away, head turned slightly left"
 
-2. **SCENE** (3-5 keywords): location, time, weather, atmosphere
-   - Example: "snow-covered mountain, dusk, blizzard, swirling snow, fog"
+2. **BACKGROUND/ENVIRONMENT** (5-8 keywords): Second most important - sets the scene
+   - Location: specific place (indoor/outdoor, mountain, city, room, forest)
+   - Time: time of day (dawn, dusk, midnight, noon)
+   - Weather: rain, snow, fog, storm, clear, cloudy
+   - Atmosphere: mist, dust, particles, haze, smoke
+   - Background elements: buildings, trees, rocks, furniture, objects
+   - Depth layers: foreground, midground, background elements
+   - Example: "snow-covered mountain peak, jagged ridges, blizzard conditions, swirling snow particles, dense fog, darkening purple-orange sky, fading light, isolated wilderness, Himalayan landscape, atmospheric perspective"
 
-3. **TECHNICAL** (3-5 keywords): camera angle, shot size, lens, lighting
-   - Example: "24mm wide lens, low angle, dramatic rim lighting, cold blue fill, shallow depth of field"
+3. **COMPOSITION & TECHNICAL** (3-5 keywords): How to frame the shot
+   - Camera angle: eye-level, low angle, high angle, dutch angle, overhead
+   - Shot size: extreme wide shot, wide shot, medium shot, close-up, extreme close-up
+   - Lens: 24mm wide, 35mm, 50mm, 85mm portrait
+   - Depth of field: shallow, deep, bokeh, focus on subject
+   - Framing: rule of thirds, centered, leading lines, symmetry
+   - Example: "24mm wide angle lens, low angle shot, shallow depth of field, subject centered, rule of thirds, dramatic perspective"
 
-4. **MOOD** (2-4 keywords): emotional tone, color palette, style
-   - Example: "isolation, dread, desaturated whites, cold blues, 8K cinematic"
+4. **MOOD & LIGHTING** (3-5 keywords): Emotional tone and visual atmosphere
+   - Lighting type: natural light, rim lighting, chiaroscuro, volumetric, ambient
+   - Lighting direction: front lit, side lit, backlit, top lit, underlit
+   - Color palette: warm tones, cool tones, desaturated, vibrant, monochromatic
+   - Mood: isolation, dread, hope, tension, peace, mystery, epic
+   - Style: cinematic, photorealistic, 8K, dramatic, documentary
+   - Example: "dramatic rim lighting from setting sun, cold blue fill light from snow reflection, desaturated whites and grays, cold blues, muted purple sky, isolation, primal dread, 8K cinematic photorealistic"
 
 ## Output Format
 
@@ -203,50 +224,64 @@ Return ONLY JSON with these fields. **ALL VALUES IN ENGLISH:**
 
 ```json
 {{
-  "prompt": "keyword1, keyword2, keyword3, keyword4, keyword5, keyword6, keyword7, keyword8, keyword9, keyword10, keyword11, keyword12",
-  "negative_prompt": "cluttered, complex, busy, low quality, blurry, distorted, deformed, watermark, text, signature",
-  "style_reference": "cinematic thriller, neo-noir, documentary style",
-  "continuity_notes": "Visual consistency notes (IN ENGLISH)",
-  "aspect_ratio": "16:9 or 9:16 or 21:9",
-  "camera": "wide shot, 35mm, eye-level",
-  "lighting": "dramatic chiaroscuro, rim lighting",
-  "priority_elements": ["keyword1", "keyword2", "keyword3"]
+  "prompt": "character keywords (5-8), background keywords (5-8), composition keywords (3-5), mood/lighting keywords (3-5)",
+  "negative_prompt": "cluttered, busy, distracting elements, low quality, blurry, distorted, deformed, ugly, watermark, text, signature, cropped, worst quality, jpeg artifacts, out of focus, bad anatomy",
+  "style_reference": "cinematic storytelling, dramatic narrative, photorealistic 8K",
+  "continuity_notes": "Visual consistency notes for previous/next scenes (IN ENGLISH)",
+  "aspect_ratio": "16:9",
+  "camera": "wide shot, 35mm, eye-level or low angle",
+  "lighting": "dramatic lighting with specific direction",
+  "priority_elements": ["main character trait", "key background element", "mood descriptor"]
 }}
 ```
 
 ## Examples
 
-### Good (Keyword-Focused):
-"tall humanoid figure, pale white skin, extremely long arms past knees, sparse white hair, sharp angular jaw, snow-covered mountain peak, dusk, blizzard swirling, 24mm wide lens, low angle, dramatic rim lighting, cold blue fill, isolation, dread, desaturated whites, cold blues, 8K cinematic"
+### Good (Character + Background Focused for Storytelling):
+"tall humanoid figure, 2.4 meters tall, emaciated build, alabaster white skin, no pigmentation, extremely long arms past knees, sparse white hair, sharp angular jawline, tattered gray fabric, center frame, snow-covered mountain peak, jagged ridges, blizzard swirling, dense fog, darkening purple-orange sky, fading dusk light, isolated wilderness, 24mm wide lens, low angle, shallow depth of field, dramatic rim lighting, cold blue fill, desaturated whites, cold blues, isolation, primal dread, 8K cinematic"
 
-### Bad (Sentence-Based, DO NOT):
-"A scary monster stands on a mountain. It is very tall and has long arms. The sky is dark and snowy. The camera is wide." ← Full sentences, weak keywords!
+### Bad (Too Technical, Not Enough Character/Background):
+"wide shot, 24mm lens, dramatic lighting, cinematic, 8K, mountain landscape, figure standing" ← Missing character details, vague background!
 
-### Bad (Vague Keywords, DO NOT):
-"monster, mountain, scary, dark, cinematic" ← Too generic, no specific details!
+### Bad (Vague, Not Storytelling-Ready):
+"monster, mountain, scary, dark, cinematic" ← No specific character or background details!
 
-## Keyword Guidelines
+## Critical Guidelines for Storytelling
 
-**DO:**
-- Use specific, concrete nouns and adjectives
-- Stack descriptive keywords: "pale white skin, alabaster complexion, no pigmentation"
-- Include technical terms: "24mm lens, low angle, rim lighting"
-- Prioritize visual elements over abstract concepts
+**CHARACTER IS KING:**
+- Spend 40% of keywords on character/subject details
+- Be extremely specific: not "tall man" but "2.4 meter tall emaciated humanoid with alabaster skin"
+- Include clothing, expression, pose, position in frame
+- Make the character readable and emotionally resonant
+
+**BACKGROUND IS QUEEN:**
+- Spend 35% of keywords on background/environment
+- Establish where, when, what conditions
+- Include atmospheric elements (fog, rain, dust, particles)
+- Create depth with foreground/midground/background layers
+- Make the background support the story mood
+
+**COMPOSITION & MOOD SUPPORT:**
+- Spend 25% on technical and mood
+- Choose angles that enhance storytelling (low angle = power, high angle = vulnerability)
+- Lighting should match emotional tone
+- Color palette reinforces the mood
 
 **DON'T:**
-- Write full sentences with subjects and verbs
-- Use vague words: "nice", "beautiful", "scary"
-- Include filler words: "the", "a", "an", "is", "are"
-- Over-explain; trust the keywords to convey the image
+- Prioritize camera specs over character details
+- Use generic terms: "nice background", "scary monster"
+- Forget the story context - every image must advance the narrative
+- Overuse technical jargon at the expense of visual clarity
 
-## Section Types
-- **Opening/Hook**: mysterious, partial reveals, atmospheric, shadowy
-- **Setup**: clear setting, full character view, establishing shot
-- **Development**: dynamic action, movement, changing expressions
-- **Climax**: maximum impact, dramatic lighting, intense, extreme angles
-- **Resolution**: visual closure, softer lighting, resolved composition
+## Section Types - Character & Background Emphasis
 
-Generate the JSON now. Output ONLY JSON in ENGLISH.
+- **Opening/Hook**: Character partial reveal + mysterious atmospheric background
+- **Setup**: Full character view + clear establishing background
+- **Development**: Character action/expression + dynamic background elements
+- **Climax**: Character intense emotion + dramatic extreme background
+- **Resolution**: Character resolved state + softer background, visual closure
+
+Generate the JSON now. Output ONLY JSON in ENGLISH. Focus on CHARACTER and BACKGROUND for visual storytelling.
 """
     
     def _classify_section(self, section_index: int, total_sections: int) -> str:
