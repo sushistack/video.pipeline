@@ -168,11 +168,18 @@ class Qwen3TTSProvider(TTSProvider):
             model_path = str(local_path)
             log_msg = f"[*] Using model from ~/.qwen/models/: {model_path}"
         else:
-            # Fallback to assets/models/.cache/
+            # Fallback to assets/models/.cache/ or HuggingFace download
             cache_dir = self.base_dir / "assets" / "models" / ".cache"
             cache_dir.mkdir(parents=True, exist_ok=True)
-            model_path = model_id
-            log_msg = f"[*] Downloading/loading model from HuggingFace: {model_id} (cache: {cache_dir})"
+            
+            # Check if model exists in cache
+            cached_model_dir = cache_dir / model_id.split("/")[-1]
+            if cached_model_dir.exists():
+                model_path = str(cached_model_dir)
+                log_msg = f"[*] Using cached model: {model_path}"
+            else:
+                model_path = model_id
+                log_msg = f"[*] Downloading model from HuggingFace: {model_id}"
 
         # Determine device and dtype
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -184,8 +191,8 @@ class Qwen3TTSProvider(TTSProvider):
             "dtype": dtype,
         }
         
-        # Only use cache_dir if not using local model
-        if not (local_path and local_path.exists()):
+        # Only use cache_dir if not using local model from ~/.qwen/models/
+        if local_path is None or not local_path.exists():
             load_kwargs["cache_dir"] = str(self.base_dir / "assets" / "models" / ".cache")
 
         # Use flash attention only if the package is actually installed
