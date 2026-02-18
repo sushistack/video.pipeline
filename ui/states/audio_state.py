@@ -82,8 +82,8 @@ class AudioState(rx.State):
 
     # Language selection
     gen_en: bool = False
-    gen_ko: bool = False
-    gen_ja: bool = True
+    gen_ko: bool = True
+    gen_ja: bool = False
 
     # Speed factor
     speed_factor: float = 1.0

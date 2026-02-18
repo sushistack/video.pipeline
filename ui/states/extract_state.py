@@ -36,10 +36,12 @@ class ExtractState(rx.State):
     selected_model: str = "gemini-3-flash-preview"
     speaker_options: list[str] = ["1", "2", "3", "4", "5+"]
     selected_speakers: str = "2"
-    
-    # Fixed parameters
-    target_langs: list[str] = ["ja", "en", "ko"]
-    
+
+    # Target Languages (Toggle state) - Default: Korean only
+    target_ja: bool = False
+    target_en: bool = False
+    target_ko: bool = True
+
     # Extraction status
     is_extracting: bool = False
     extraction_logs: list[str] = []
@@ -50,24 +52,51 @@ class ExtractState(rx.State):
     def can_extract(self) -> bool:
         """Can start extraction"""
         return bool(self.selected_file) and not self.is_extracting
-    
+
     @rx.var
     def speaker_count(self) -> int:
         """Parse speaker count"""
         return 5 if self.selected_speakers == "5+" else int(self.selected_speakers)
+
+    @rx.var
+    def target_langs(self) -> list[str]:
+        """Get selected target languages"""
+        langs = []
+        if self.target_ja:
+            langs.append("ja")
+        if self.target_en:
+            langs.append("en")
+        if self.target_ko:
+            langs.append("ko")
+        # Always include Japanese as base for transcription
+        if "ja" not in langs:
+            langs.insert(0, "ja")
+        return langs
     
     # Explicit setters
     def set_selected_file(self, value: str):
         """Set selected file"""
         self.selected_file = value
-    
+
     def set_selected_model(self, value: str):
         """Set selected model"""
         self.selected_model = value
-    
+
     def set_selected_speakers(self, value: str):
         """Set selected speakers"""
         self.selected_speakers = value
+
+    def set_target_ja(self, value: bool):
+        """Set Japanese target"""
+        self.target_ja = value
+
+    def set_target_en(self, value: bool):
+        """Set English target"""
+        self.target_en = value
+
+    def set_target_ko(self, value: bool):
+        """Set Korean target"""
+        self.target_ko = value
     
     def on_load(self):
         """Called when page loads"""
@@ -113,79 +142,82 @@ class ExtractState(rx.State):
         if not self.can_extract:
             yield rx.toast.error("Please select a file first!")
             return
-        
+
+        # Get selected languages at start time
+        selected_langs = self.target_langs
+
         # Initialize state
         self.is_extracting = True
         self.should_stop = False
         self.extraction_logs = []  # Clear logs only on start
         yield  # Force UI update
-        
+
         try:
             self.log("=" * 50)
             self.log(f"🎬 Starting extraction for: {self.selected_file}")
             self.log(f"🤖 Model: {self.selected_model}")
             self.log(f"👥 Speaker count: {self.speaker_count}")
-            self.log(f"🌐 Languages: {', '.join(self.target_langs)}")
+            self.log(f"🌐 Languages: {', '.join(selected_langs)}")
             self.log("=" * 50)
             yield  # Update UI
-            
+
             # Get file path
             audio_path = PARENT_DIR / "assets" / "videos" / self.selected_file
-            
+
             if not audio_path.exists():
                 self.log(f"❌ ERROR: File not found: {audio_path}")
                 yield rx.toast.error(f"File not found!")
                 return
-            
+
             output_root = PARENT_DIR / "workspace"
-            
+
             # Initialize CaptionGenerator
             self.log("⚙️ Initializing CaptionGenerator...")
             yield
             cg = CaptionGenerator(model_name=self.selected_model)
             self.log(f"✅ CaptionGenerator ready with {cg.model_name}")
             yield
-            
+
             # Check for stop before starting
             if self.should_stop:
                 self.log("🛑 Stopped before extraction started")
                 return
-            
+
             # Run extraction with stdout capture
             self.log("🚀 Running extraction... (this may take several minutes)")
             self.log("📝 Processing audio and generating subtitles...")
             yield
-            
+
             # Capture stdout/stderr
             import subprocess
             from threading import Thread
-            
+
             def run_extraction():
                 """Run in thread to capture output"""
                 import sys
                 old_stdout = sys.stdout
                 old_stderr = sys.stderr
-                
+
                 try:
                     # Redirect to capture
                     sys.stdout = io.StringIO()
                     sys.stderr = io.StringIO()
-                    
+
                     cg.generate(
                         audio_path=audio_path,
                         output_dir=output_root,
-                        target_languages=self.target_langs,
+                        target_languages=selected_langs,
                         generate_json=False,
                         speaker_count=self.speaker_count
                     )
-                    
+
                 finally:
                     # Restore
                     sys.stdout = old_stdout
                     sys.stderr = old_stderr
-            
+
             await asyncio.to_thread(run_extraction)
-            
+
             # Check if stopped
             if self.should_stop:
                 self.log("🛑 Extraction stopped by user")
@@ -196,7 +228,7 @@ class ExtractState(rx.State):
                 self.log(f"📁 Output saved to: workspace/{audio_path.stem}/subtitles/")
                 self.log("=" * 50)
                 yield rx.toast.success("Extraction Complete! 🚀")
-            
+
         except Exception as e:
             self.log(f"❌ ERROR: {str(e)}")
             import traceback
@@ -205,7 +237,7 @@ class ExtractState(rx.State):
                 if line.strip():
                     self.log(f"   {line}")
             yield rx.toast.error(f"Extraction Failed: {e}")
-        
+
         finally:
             self.is_extracting = False
             self.should_stop = False

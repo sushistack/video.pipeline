@@ -93,14 +93,29 @@ def page() -> rx.Component:
             margin_top="15px"
         ),
 
-        # Row 3: Target Languages
+        # Row 3: Target Languages (Toggle Buttons)
         rx.vstack(
             rx.text("Target Languages", weight="bold"),
             rx.hstack(
-                rx.badge("🇯🇵 Japanese", color_scheme="blue", variant="solid", size="3"),
-                rx.badge("🇺🇸 English", color_scheme="green", variant="solid", size="3"),
-                rx.badge("🇰🇷 Korean", color_scheme="purple", variant="solid", size="3"),
-                spacing="3",
+                rx.button(
+                    "🇯🇵 Japanese",
+                    variant=rx.cond(ExtractState.target_ja, "solid", "outline"),
+                    on_click=ExtractState.set_target_ja(~ExtractState.target_ja),
+                    disabled=ExtractState.is_extracting,
+                ),
+                rx.button(
+                    "🇺🇸 English",
+                    variant=rx.cond(ExtractState.target_en, "solid", "outline"),
+                    on_click=ExtractState.set_target_en(~ExtractState.target_en),
+                    disabled=ExtractState.is_extracting,
+                ),
+                rx.button(
+                    "🇰🇷 Korean",
+                    variant=rx.cond(ExtractState.target_ko, "solid", "outline"),
+                    on_click=ExtractState.set_target_ko(~ExtractState.target_ko),
+                    disabled=ExtractState.is_extracting,
+                ),
+                spacing="4",
             ),
             width="100%",
             align_items="start",
