@@ -256,14 +256,14 @@ def page() -> rx.Component:
     """Scenario Tab"""
     return page_container([
         page_header("🎬 Scenario Generation", "Configure voice files for each speaker"),
-        
+
         project_selector(
             projects=ScenarioState.available_projects,
             current_project=ScenarioState.selected_project,
             on_change_callback=ScenarioState.set_selected_project,
             on_reload_callback=ScenarioState.on_load,
         ),
-        
+
         rx.tabs.root(
             rx.tabs.list(
                 rx.tabs.trigger("🇰🇷 Korean", value="ko"),
@@ -295,9 +295,9 @@ def page() -> rx.Component:
             default_value="ko",
             width="100%",
         ),
-        
+
         rx.divider(margin_top="4", margin_bottom="4"),
-        
+
         # Generate button
         rx.cond(
             ScenarioState.is_generating,
@@ -317,11 +317,11 @@ def page() -> rx.Component:
                 width="100%",
             ),
         ),
-        
+
         rx.callout(
             "ℹ️ All speakers must have voices selected for Japanese, Korean, and English.",
             color_scheme="blue",
             margin_top="3",
         ),
-        
-    ], max_width="1400px")
+
+    ], max_width="1400px", on_mount=ScenarioState.on_load)
