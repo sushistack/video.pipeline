@@ -1,6 +1,7 @@
 """Qwen3-TTS Provider implementation."""
 
 import re
+import sys
 import warnings
 from pathlib import Path
 from typing import AsyncGenerator, Optional
@@ -12,6 +13,34 @@ warnings.filterwarnings("ignore", message=".*flash-attn.*")
 warnings.filterwarnings("ignore", message=".*Flash Efficient attention.*")
 warnings.filterwarnings("ignore", message=".*Mem Efficient attention.*")
 warnings.filterwarnings("ignore", message=".*MIOpen.*")
+
+# Suppress HIP/ROCm runtime logs by filtering stderr
+class LogFilter:
+    """Filter out HIP/ROCm runtime logs from stderr."""
+    def __init__(self, stream):
+        self._stream = stream
+        self._ignored_patterns = [
+            b'hip_device_runtime.cpp',
+            b'hipSetDevice',
+            b'hipGetDevice',
+            b'hipSuccess',
+            b'hip_device_runtime',
+        ]
+    
+    def write(self, data):
+        if isinstance(data, bytes):
+            if any(pattern in data for pattern in self._ignored_patterns):
+                return
+        elif isinstance(data, str):
+            if any(pattern.decode() in data for pattern in self._ignored_patterns):
+                return
+        self._stream.write(data)
+    
+    def flush(self):
+        self._stream.flush()
+
+# Apply filter to stderr
+sys.stderr = LogFilter(sys.stderr)
 
 from .base import (
     TTSProvider,
