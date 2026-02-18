@@ -22,21 +22,21 @@ class Qwen3TTSProvider(TTSProvider):
     """
 
     # Available model configurations
-    # Uses symbolic links from ~/.qwen/models/ if available, otherwise assets/models/
+    # Uses models from ~/.qwen/models/ (downloaded via scripts/download_qwen_models.py)
     MODEL_CONFIGS = {
         "CustomVoice": {
             "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
-            "local_path": Path.home() / ".qwen" / "models" / "Qwen3-TTS-12Hz-1.7B-CustomVoice",
+            "local_path": Path.home() / ".qwen" / "models" / "CustomVoice",
             "type": "custom_voice",
         },
         "Base": {
             "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-            "local_path": Path.home() / ".qwen" / "models" / "Qwen3-TTS-12Hz-1.7B-Base",
+            "local_path": Path.home() / ".qwen" / "models" / "Base",
             "type": "base",
         },
         "VoiceDesign": {
             "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-            "local_path": Path.home() / ".qwen" / "models" / "Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+            "local_path": Path.home() / ".qwen" / "models" / "VoiceDesign",
             "type": "voice_design",
         },
     }
