@@ -37,7 +37,7 @@ class AudioState(rx.State):
 
     # Model selection (dynamic based on provider)
     model_versions: list[str] = ["Base", "CustomVoice", "VoiceDesign"]
-    selected_model: str = "Base"
+    selected_model: str = "CustomVoice"  # Default to CustomVoice for preset speakers
 
     # GPT-SoVITS Model Mappings (Relative to pretrained_models)
     MODEL_MAPPINGS = {
@@ -235,7 +235,7 @@ class AudioState(rx.State):
             self.selected_model = "V2ProPlus"
         elif value == "Qwen3-TTS":
             self.model_versions = ["Base", "CustomVoice", "VoiceDesign"]
-            self.selected_model = "Base"
+            self.selected_model = "CustomVoice"  # Default to CustomVoice for preset speakers
 
     def set_selected_model(self, value: str):
         self.selected_model = value
