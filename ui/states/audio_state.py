@@ -771,10 +771,14 @@ class ScenarioState(rx.State):
 
     def set_selected_project(self, value: str):
         """Set project and auto-detect speakers"""
+        print(f"[DEBUG] set_selected_project called with: {value}")
         self.selected_project = value
         if value:
             self._detect_speakers()
             self._load_config()  # Load saved config after detection
+            print(f"[DEBUG] Detected speakers: {self.speakers}")
+        else:
+            print("[DEBUG] No value provided")
 
     def _detect_speakers(self):
         """Parse SRT file and extract unique speakers"""
@@ -848,6 +852,8 @@ class ScenarioState(rx.State):
 
     def on_load(self):
         """Load projects and voice files"""
+        print("[DEBUG] ScenarioState.on_load called")
+        
         # Load projects - any SRT file is sufficient
         output_root = PARENT_DIR / "workspace"
         if output_root.exists():
@@ -861,10 +867,16 @@ class ScenarioState(rx.State):
                 )
             ]
             self.available_projects = sorted(projects)
+            print(f"[DEBUG] Found projects: {self.available_projects}")
 
             # Auto-select first project in ScenarioState
             if self.available_projects and not self.selected_project:
-                self.set_selected_project(self.available_projects[0])
+                first_project = self.available_projects[0]
+                print(f"[DEBUG] Auto-selecting project: {first_project}")
+                self.selected_project = first_project
+                self._detect_speakers()
+                self._load_config()
+                print(f"[DEBUG] After detect, speakers: {self.speakers}")
 
         # Load available voice files by language and gender
         audio_inputs = PARENT_DIR / "assets" / "audios"
