@@ -75,13 +75,19 @@ class ReviewState(rx.State):
             # Find most recent by checking SRT modification time
             output_root = PARENT_DIR / "workspace"
             projects_with_time = []
-            
+
             for proj_name in self.available_projects:
-                srt_path = output_root / proj_name / "subtitles" / "ja.srt"
+                # Check any available SRT (ko, en, or ja)
+                srt_path = output_root / proj_name / "subtitles" / "ko.srt"
+                if not srt_path.exists():
+                    srt_path = output_root / proj_name / "subtitles" / "en.srt"
+                if not srt_path.exists():
+                    srt_path = output_root / proj_name / "subtitles" / "ja.srt"
+                
                 if srt_path.exists():
                     mtime = srt_path.stat().st_mtime
                     projects_with_time.append((proj_name, mtime))
-            
+
             if projects_with_time:
                 # Sort by modification time (newest first)
                 projects_with_time.sort(key=lambda x: x[1], reverse=True)
@@ -94,7 +100,11 @@ class ReviewState(rx.State):
         if output_root.exists():
             projects = [
                 p.name for p in output_root.iterdir()
-                if p.is_dir() and (p / "subtitles" / "ja.srt").exists()
+                if p.is_dir() and (
+                    (p / "subtitles" / "ja.srt").exists() or
+                    (p / "subtitles" / "ko.srt").exists() or
+                    (p / "subtitles" / "en.srt").exists()
+                )
             ]
             self.available_projects = sorted(projects)
             
@@ -125,29 +135,29 @@ class ReviewState(rx.State):
         """Load SRT files for selected project"""
         self.current_project = project_name
         project_path = PARENT_DIR / "workspace" / project_name / "subtitles"
-        
-        # Parse SRTs
-        ja_items = parse_srt(project_path / "ja.srt")
-        ko_items = parse_srt(project_path / "ko.srt")
-        en_items = parse_srt(project_path / "en.srt")
-        
+
+        # Parse SRTs (only if files exist)
+        ja_items = parse_srt(project_path / "ja.srt") if (project_path / "ja.srt").exists() else []
+        ko_items = parse_srt(project_path / "ko.srt") if (project_path / "ko.srt").exists() else []
+        en_items = parse_srt(project_path / "en.srt") if (project_path / "en.srt").exists() else []
+
         # Merge
         combined = []
         max_len = max(len(ja_items), len(ko_items), len(en_items))
-        
+
         for i in range(max_len):
             ja = ja_items[i] if i < len(ja_items) else {"start": "", "end": "", "text": ""}
             ko = ko_items[i] if i < len(ko_items) else {"start": "", "end": "", "text": ""}
             en = en_items[i] if i < len(en_items) else {"start": "", "end": "", "text": ""}
-            
+
             # Extract speaker from each language
             spk_ja, text_ja = extract_speaker(ja["text"])
             spk_en, text_en = extract_speaker(en["text"])
             spk_ko, text_ko = extract_speaker(ko["text"])
-            
+
             # Priority: JA > EN > KO
             speaker = spk_ja or spk_en or spk_ko
-            
+
             combined.append({
                 "id": i,
                 "start": ja["start"] or en["start"] or ko["start"],
@@ -157,7 +167,7 @@ class ReviewState(rx.State):
                 "text_ko": text_ko,
                 "text_en": text_en,
             })
-        
+
         self.subtitles = combined
         self._assign_colors()
     
