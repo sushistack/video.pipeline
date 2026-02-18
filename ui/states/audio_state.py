@@ -913,12 +913,26 @@ class ScenarioState(rx.State):
 
     @rx.var
     def can_generate(self) -> bool:
-        """Check if all speakers have voices selected for all languages"""
+        """Check if all speakers have voices selected for available languages"""
         if not self.selected_project or not self.speakers:
             return False
 
-        # Check all speakers have voices in all 3 languages
-        for lang in ["ja", "ko", "en"]:
+        # Determine which languages are available (based on SRT existence)
+        project_path = PARENT_DIR / "workspace" / self.selected_project / "subtitles"
+        available_langs = []
+        if (project_path / "ja.srt").exists():
+            available_langs.append("ja")
+        if (project_path / "ko.srt").exists():
+            available_langs.append("ko")
+        if (project_path / "en.srt").exists():
+            available_langs.append("en")
+
+        # If no SRT files found, cannot generate
+        if not available_langs:
+            return False
+
+        # Check all speakers have voices in available languages only
+        for lang in available_langs:
             if lang not in self.selected_voices:
                 return False
 
