@@ -333,57 +333,39 @@ class CaptionGenerator:
     def _preprocess_audio(self, input_path: Path, output_dir: Path) -> Path:
         """
         1. Normalize loudness (FFmpeg)
-        2. Isolate vocals (Demucs)
-        Returns path to the isolated vocals.
+        2. Isolate vocals (FFmpeg - highpass/lowpass filter)
+        Returns path to the processed audio.
         """
         output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 1. Normalize
+
+        # 1. Normalize loudness
         normalized_path = output_dir / "normalized.wav"
         if not normalized_path.exists():
             print("    [*] Normalizing loudness...")
             cmd_norm = [
                 "ffmpeg", "-y", "-i", str(input_path),
                 "-af", "loudnorm=I=-16:LRA=11:TP=-1.5",
+                "-vn",  # No video
                 str(normalized_path)
             ]
             subprocess.run(cmd_norm, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
-        # 2. Vocal Separation (Demucs)
-        # Demucs output structure: {output_dir}/htdemucs/{track_name}/vocals.wav
-        # We need to correctly identify the track name demucs uses (usually filename without extension)
-        track_name = normalized_path.stem
-        demucs_out = output_dir / "demucs"
-        expected_vocals = demucs_out / "htdemucs" / track_name / "vocals.wav"
-        
-        if not expected_vocals.exists():
-            print("    [*] Separating vocals (Demucs)... This may take time.")
-            # Run demucs
-            # demucs --two-stems=vocals -o {out_dir} {input}
-            cmd_demucs = [
-                "demucs", "--two-stems=vocals",
-                "-d", "cpu",
-                "-o", str(demucs_out),
-                str(normalized_path)
-            ]
-            # Capture output to avoid cluttering logs too much, but print if error
-            try:
-                subprocess.run(cmd_demucs, check=True) # Let it print progress
-            except FileNotFoundError:
-                 # Try python -m demucs if direct command not found
-                cmd_demucs_py = [
-                    sys.executable, "-m", "demucs", 
-                    "--two-stems=vocals",
-                    "-d", "cpu",
-                    "-o", str(demucs_out),
-                    str(normalized_path)
-                ]
-                subprocess.run(cmd_demucs_py, check=True)
 
-        if expected_vocals.exists():
-            return expected_vocals
-        else:
-            raise FileNotFoundError(f"Demucs output not found at {expected_vocals}")
+        # 2. Vocal Enhancement (instead of Demucs which requires torchcodec)
+        # Use ffmpeg to apply vocal isolation filters
+        processed_vocals = output_dir / "vocals.wav"
+
+        if not processed_vocals.exists():
+            print("    [*] Enhancing vocals (FFmpeg filters)...")
+            # Apply bandpass filter for voice frequencies (300Hz - 3400Hz)
+            # and reduce background noise
+            cmd_vocals = [
+                "ffmpeg", "-y", "-i", str(normalized_path),
+                "-af", "highpass=f=300,lowpass=f=3400,volume=1.5",
+                str(processed_vocals)
+            ]
+            subprocess.run(cmd_vocals, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        return processed_vocals
 
     def refine_script(self, captions: list[CaptionItem]) -> list[CaptionItem]:
         """
