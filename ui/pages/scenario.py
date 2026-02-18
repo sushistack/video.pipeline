@@ -266,30 +266,33 @@ def page() -> rx.Component:
         
         rx.tabs.root(
             rx.tabs.list(
-                rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
-                rx.tabs.trigger("🇺🇸 English", value="en"),
                 rx.tabs.trigger("🇰🇷 Korean", value="ko"),
+                rx.tabs.trigger("🇺🇸 English", value="en"),
+                rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
             ),
-            
+
+            # Korean Tab
             rx.tabs.content(
-                language_speaker_config("ja", "Japanese", "🇯🇵"),
-                value="ja",
+                language_speaker_config("ko", "Korean", "🇰🇷"),
+                value="ko",
                 padding_top="4",
             ),
-            
+
+            # English Tab
             rx.tabs.content(
                 language_speaker_config("en", "English", "🇺🇸"),
                 value="en",
                 padding_top="4",
             ),
 
+            # Japanese Tab
             rx.tabs.content(
-                language_speaker_config("ko", "Korean", "🇰🇷"),
-                value="ko",
+                language_speaker_config("ja", "Japanese", "🇯🇵"),
+                value="ja",
                 padding_top="4",
             ),
-            
-            default_value="ja",
+
+            default_value="ko",
             width="100%",
         ),
         

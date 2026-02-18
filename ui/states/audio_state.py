@@ -781,9 +781,19 @@ class ScenarioState(rx.State):
         if not self.selected_project:
             return
 
+        # Try to find any available SRT file (ko > en > ja priority)
         srt_path = (
-            PARENT_DIR / "workspace" / self.selected_project / "subtitles" / "ja.srt"
+            PARENT_DIR / "workspace" / self.selected_project / "subtitles" / "ko.srt"
         )
+        if not srt_path.exists():
+            srt_path = (
+                PARENT_DIR / "workspace" / self.selected_project / "subtitles" / "en.srt"
+            )
+        if not srt_path.exists():
+            srt_path = (
+                PARENT_DIR / "workspace" / self.selected_project / "subtitles" / "ja.srt"
+            )
+        
         if not srt_path.exists():
             return
 
@@ -838,13 +848,17 @@ class ScenarioState(rx.State):
 
     def on_load(self):
         """Load projects and voice files"""
-        # Load projects
+        # Load projects - any SRT file is sufficient
         output_root = PARENT_DIR / "workspace"
         if output_root.exists():
             projects = [
                 p.name
                 for p in output_root.iterdir()
-                if p.is_dir() and (p / "subtitles" / "ja.srt").exists()
+                if p.is_dir() and (
+                    (p / "subtitles" / "ko.srt").exists() or
+                    (p / "subtitles" / "en.srt").exists() or
+                    (p / "subtitles" / "ja.srt").exists()
+                )
             ]
             self.available_projects = sorted(projects)
 
