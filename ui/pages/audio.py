@@ -16,18 +16,21 @@ from components.file_selector import project_selector
 
 def page() -> rx.Component:
     """Audio Tab - TTS Generation"""
-    return page_container(
-        [
-            # Hidden on_mount trigger
-            rx.box(
-                on_mount=AudioState.on_load,
-                display="none",
-            ),
-            
-            page_header(
-                "🎙️ Text-to-Speech Generation",
-                "Generate audio with GPT-SoVITS or Qwen3-TTS",
-            ),
+    return rx.vstack(
+        # Hidden on_mount trigger - must be first to execute immediately
+        rx.box(
+            on_mount=AudioState.on_load,
+            width="0",
+            height="0",
+            visibility="hidden",
+        ),
+        
+        page_container(
+            [
+                page_header(
+                    "🎙️ Text-to-Speech Generation",
+                    "Generate audio with GPT-SoVITS or Qwen3-TTS",
+                ),
             # Project Selection
             project_selector(
                 projects=AudioState.available_projects,
@@ -566,4 +569,7 @@ def page() -> rx.Component:
             log_viewer(AudioState.generation_logs),
         ],
         max_width="1200px",
-    )
+    ),
+    spacing="0",
+    width="100%",
+)
