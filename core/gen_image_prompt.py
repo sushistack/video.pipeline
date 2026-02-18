@@ -163,7 +163,7 @@ class ImagePromptGenerator:
         Build the prompt request for Gemini API.
         """
         return f"""
-You are an expert AI image prompt engineer for video production. Create strategic, focused image prompts.
+You are an expert AI image prompt engineer for video production. Create keyword-focused image prompts.
 
 **CRITICAL: ALL OUTPUT MUST BE IN ENGLISH ONLY.**
 
@@ -177,25 +177,25 @@ You are an expert AI image prompt engineer for video production. Create strategi
 ## Context
 {previous_context if previous_context else "First section."}
 
-## Prompt Engineering Principles
+## Keyword-First Prompt Structure
 
-**Be Strategic, Not Exhaustive:**
-1. **Core First**: Lead with the most important subject and action
-2. **Progressive Detail**: Establish the big picture first, then add key details
-3. **Subtract, Don't Add**: Use negative prompts to remove unwanted elements rather than stacking descriptors
-4. **Focus**: Like a buffet plate—too many items ruin the experience. Prioritize the main "flavors"
+**Use comma-separated keywords, not full sentences.**
 
-**Quality Over Quantity:**
-- One strong, clear image > cluttered description
-- Strategic details > exhaustive lists
-- Clean composition > visual chaos
+Format: `[SUBJECT KEYWORDS], [SCENE KEYWORDS], [TECHNICAL KEYWORDS], [MOOD KEYWORDS]`
 
-## Required Elements (Prioritized)
+### Keyword Categories:
 
-1. **Subject**: Main character/object (physical traits, clothing, expression, position)
-2. **Scene**: Location, time, weather, atmosphere
-3. **Technical**: Camera angle, shot size, lighting direction
-4. **Mood**: Emotional tone, color palette
+1. **SUBJECT** (3-5 keywords): physical traits, clothing, expression, pose
+   - Example: "tall humanoid, pale white skin, extremely long arms, sparse white hair, sharp jawline"
+
+2. **SCENE** (3-5 keywords): location, time, weather, atmosphere
+   - Example: "snow-covered mountain, dusk, blizzard, swirling snow, fog"
+
+3. **TECHNICAL** (3-5 keywords): camera angle, shot size, lens, lighting
+   - Example: "24mm wide lens, low angle, dramatic rim lighting, cold blue fill, shallow depth of field"
+
+4. **MOOD** (2-4 keywords): emotional tone, color palette, style
+   - Example: "isolation, dread, desaturated whites, cold blues, 8K cinematic"
 
 ## Output Format
 
@@ -203,31 +203,48 @@ Return ONLY JSON with these fields. **ALL VALUES IN ENGLISH:**
 
 ```json
 {{
-  "prompt": "Clear, focused prompt. Structure: [SUBJECT: key traits] + [SCENE: location/time] + [TECHNICAL: angle/lighting] + [MOOD: tone/colors]. Strategic details only.",
-  "negative_prompt": "cluttered, complex, busy, low quality, blurry, distorted, deformed, watermark, text",
-  "style_reference": "e.g., 'cinematic thriller', 'documentary', 'neo-noir'",
+  "prompt": "keyword1, keyword2, keyword3, keyword4, keyword5, keyword6, keyword7, keyword8, keyword9, keyword10, keyword11, keyword12",
+  "negative_prompt": "cluttered, complex, busy, low quality, blurry, distorted, deformed, watermark, text, signature",
+  "style_reference": "cinematic thriller, neo-noir, documentary style",
   "continuity_notes": "Visual consistency notes (IN ENGLISH)",
   "aspect_ratio": "16:9 or 9:16 or 21:9",
-  "camera": "e.g., 'wide shot, 35mm, eye-level'",
-  "lighting": "e.g., 'dramatic chiaroscuro, rim lighting'",
-  "priority_elements": ["element 1", "element 2", "element 3"]
+  "camera": "wide shot, 35mm, eye-level",
+  "lighting": "dramatic chiaroscuro, rim lighting",
+  "priority_elements": ["keyword1", "keyword2", "keyword3"]
 }}
 ```
 
 ## Examples
 
-### Good (Focused & Strategic):
-"Tall humanoid figure, center frame—pale white skin, extremely long arms past knees, sparse white hair, sharp angular jaw. Snow-covered mountain peak at dusk, blizzard swirling. 24mm wide lens, low angle, dramatic rim lighting from sunset, cold blue fill from snow. Mood: isolation, dread. Desaturated whites/grays, cold blues. 8K, cinematic."
+### Good (Keyword-Focused):
+"tall humanoid figure, pale white skin, extremely long arms past knees, sparse white hair, sharp angular jaw, snow-covered mountain peak, dusk, blizzard swirling, 24mm wide lens, low angle, dramatic rim lighting, cold blue fill, isolation, dread, desaturated whites, cold blues, 8K cinematic"
 
-### Bad (Cluttered):
-"A scary monster on a mountain, very tall and white, with long arms and weird hair, looking scary, dark sky, cold, snowy, wide shot, dramatic, cinematic, 8k, detailed, realistic" ← Vague, disorganized, no strategy!
+### Bad (Sentence-Based, DO NOT):
+"A scary monster stands on a mountain. It is very tall and has long arms. The sky is dark and snowy. The camera is wide." ← Full sentences, weak keywords!
+
+### Bad (Vague Keywords, DO NOT):
+"monster, mountain, scary, dark, cinematic" ← Too generic, no specific details!
+
+## Keyword Guidelines
+
+**DO:**
+- Use specific, concrete nouns and adjectives
+- Stack descriptive keywords: "pale white skin, alabaster complexion, no pigmentation"
+- Include technical terms: "24mm lens, low angle, rim lighting"
+- Prioritize visual elements over abstract concepts
+
+**DON'T:**
+- Write full sentences with subjects and verbs
+- Use vague words: "nice", "beautiful", "scary"
+- Include filler words: "the", "a", "an", "is", "are"
+- Over-explain; trust the keywords to convey the image
 
 ## Section Types
-- **Opening/Hook**: Mysterious, partial reveals, atmospheric
-- **Setup**: Clear setting, full character descriptions
-- **Development**: Dynamic action, changing expressions
-- **Climax**: Maximum impact, dramatic lighting, intense
-- **Resolution**: Visual closure, softer lighting
+- **Opening/Hook**: mysterious, partial reveals, atmospheric, shadowy
+- **Setup**: clear setting, full character view, establishing shot
+- **Development**: dynamic action, movement, changing expressions
+- **Climax**: maximum impact, dramatic lighting, intense, extreme angles
+- **Resolution**: visual closure, softer lighting, resolved composition
 
 Generate the JSON now. Output ONLY JSON in ENGLISH.
 """
