@@ -106,45 +106,40 @@ def subtitle_row(row: dict) -> rx.Component:
                     }
                 ),
                 
-                # Language Text Areas - Show based on checkbox state
-                rx.grid(
-                    # Japanese (show if checkbox enabled)
-                    rx.cond(
-                        ReviewState.show_ja,
+                # Language Text Areas - Show based on checkbox state with dynamic columns
+                rx.cond(
+                    ReviewState.show_ja & ReviewState.show_en,
+                    # All 3 languages shown
+                    rx.grid(
+                        # Japanese
                         rx.vstack(
                             rx.text("🇯🇵 Japanese", size="2", weight="bold"),
-                                rx.text_area(
-                                    value=row["text_ja"],
-                                    on_change=lambda val: ReviewState.update_row(row_id, "text_ja", val),
-                                    width="100%",
-                                    min_height="80px",
-                                    size="3",
-                                ),
+                            rx.text_area(
+                                value=row["text_ja"],
+                                on_change=lambda val: ReviewState.update_row(row_id, "text_ja", val),
+                                width="100%",
+                                min_height="80px",
+                                size="3",
+                            ),
                             spacing="1",
                             align="start",
                             width="100%",
                         ),
-                        rx.box(),  # Empty placeholder when hidden
-                    ),
-
-                    # Korean (always shown)
-                    rx.vstack(
-                        rx.text("🇰🇷 Korean", size="2", weight="bold"),
-                        rx.text_area(
-                            value=row["text_ko"],
-                            on_change=lambda val: ReviewState.update_row(row_id, "text_ko", val),
+                        # Korean
+                        rx.vstack(
+                            rx.text("🇰🇷 Korean", size="2", weight="bold"),
+                            rx.text_area(
+                                value=row["text_ko"],
+                                on_change=lambda val: ReviewState.update_row(row_id, "text_ko", val),
+                                width="100%",
+                                min_height="80px",
+                                size="3",
+                            ),
+                            spacing="1",
+                            align="start",
                             width="100%",
-                            min_height="80px",
-                            size="3",
                         ),
-                        spacing="1",
-                        align="start",
-                        width="100%",
-                    ),
-
-                    # English (show if checkbox enabled)
-                    rx.cond(
-                        ReviewState.show_en,
+                        # English
                         rx.vstack(
                             rx.text("🇺🇸 English", size="2", weight="bold"),
                             rx.text_area(
@@ -158,12 +153,94 @@ def subtitle_row(row: dict) -> rx.Component:
                             align="start",
                             width="100%",
                         ),
-                        rx.box(),  # Empty placeholder when hidden
+                        columns="3",
+                        spacing="4",
+                        width="100%",
                     ),
-
-                    columns="3",
-                    spacing="4",
-                    width="100%",
+                    rx.cond(
+                        ReviewState.show_ja,
+                        # Japanese + Korean only
+                        rx.grid(
+                            rx.vstack(
+                                rx.text("🇯🇵 Japanese", size="2", weight="bold"),
+                                rx.text_area(
+                                    value=row["text_ja"],
+                                    on_change=lambda val: ReviewState.update_row(row_id, "text_ja", val),
+                                    width="100%",
+                                    min_height="80px",
+                                    size="3",
+                                ),
+                                spacing="1",
+                                align="start",
+                                width="100%",
+                            ),
+                            rx.vstack(
+                                rx.text("🇰🇷 Korean", size="2", weight="bold"),
+                                rx.text_area(
+                                    value=row["text_ko"],
+                                    on_change=lambda val: ReviewState.update_row(row_id, "text_ko", val),
+                                    width="100%",
+                                    min_height="80px",
+                                    size="3",
+                                ),
+                                spacing="1",
+                                align="start",
+                                width="100%",
+                            ),
+                            columns="2",
+                            spacing="4",
+                            width="100%",
+                        ),
+                        rx.cond(
+                            ReviewState.show_en,
+                            # Korean + English only
+                            rx.grid(
+                                rx.vstack(
+                                    rx.text("🇰🇷 Korean", size="2", weight="bold"),
+                                    rx.text_area(
+                                        value=row["text_ko"],
+                                        on_change=lambda val: ReviewState.update_row(row_id, "text_ko", val),
+                                        width="100%",
+                                        min_height="80px",
+                                        size="3",
+                                    ),
+                                    spacing="1",
+                                    align="start",
+                                    width="100%",
+                                ),
+                                rx.vstack(
+                                    rx.text("🇺🇸 English", size="2", weight="bold"),
+                                    rx.text_area(
+                                        value=row["text_en"],
+                                        on_change=lambda val: ReviewState.update_row(row_id, "text_en", val),
+                                        width="100%",
+                                        min_height="80px",
+                                        size="3",
+                                    ),
+                                    spacing="1",
+                                    align="start",
+                                    width="100%",
+                                ),
+                                columns="2",
+                                spacing="4",
+                                width="100%",
+                            ),
+                            # Korean only
+                            rx.vstack(
+                                rx.text("🇰🇷 Korean", size="2", weight="bold"),
+                                rx.text_area(
+                                    value=row["text_ko"],
+                                    on_change=lambda val: ReviewState.update_row(row_id, "text_ko", val),
+                                    width="100%",
+                                    min_height="80px",
+                                    size="3",
+                                ),
+                                spacing="1",
+                                align="start",
+                                width="100%",
+                            ),
+                        ),
+                    ),
                 ),
                 
                 spacing="3",
