@@ -1,4 +1,4 @@
-"""Extract Page - STT Caption Extraction"""
+"""Extract Page - STT Caption Extraction & Story-to-Script"""
 import reflex as rx
 import sys
 from pathlib import Path
@@ -8,21 +8,16 @@ if str(UI_DIR) not in sys.path:
     sys.path.insert(0, str(UI_DIR))
 
 from states.extract_state import ExtractState
+from states.story_script_state import StoryScriptState
 from components.layout import page_container, page_header
 from components.log_viewer import log_viewer
-
-
 from components.file_selector import project_selector
+from components.story_script_tab import story_script_tab
 
 
-def page() -> rx.Component:
-    """Extract Tab - Caption Extraction Page"""
-    return page_container([
-        page_header(
-            "🎤 Caption Extraction (STT)",
-            "Select a video/audio file to generate multilingual subtitles"
-        ),
-        
+def stt_extraction_tab() -> rx.Component:
+    """STT Extraction Tab Content"""
+    return rx.vstack(
         # Status Indicator
         rx.cond(
             ExtractState.is_extracting,
@@ -31,7 +26,7 @@ def page() -> rx.Component:
                 color_scheme="blue",
             ),
         ),
-        
+
         # Row 1: File Selection (Full Width)
         rx.vstack(
             rx.text("Video/Audio File", weight="bold"),
@@ -43,7 +38,7 @@ def page() -> rx.Component:
                 placeholder="Select a file...",
                 disabled=ExtractState.is_extracting,
             ),
-             rx.text(
+            rx.text(
                 f"Found {ExtractState.available_files.length()} files",
                 size="1",
                 color_scheme="gray"
@@ -52,7 +47,7 @@ def page() -> rx.Component:
             align_items="start",
             max_width="600px",
         ),
-        
+
         # Row 2: Model & Speaker Count (Two Columns)
         rx.grid(
             # Gemini Model
@@ -69,7 +64,7 @@ def page() -> rx.Component:
                 width="100%",
                 align_items="start",
             ),
-            
+
             # Speaker Count
             rx.vstack(
                 rx.text("Speakers", weight="bold"),
@@ -85,7 +80,7 @@ def page() -> rx.Component:
                 max_width="150px",
                 align_items="start",
             ),
-            
+
             columns="2",
             spacing="4",
             width="100%",
@@ -123,9 +118,9 @@ def page() -> rx.Component:
             margin_top="15px",
             margin_bottom="10px",
         ),
-        
+
         rx.divider(),
-        
+
         # Action Buttons
         rx.hstack(
             rx.cond(
@@ -149,18 +144,45 @@ def page() -> rx.Component:
             ),
             spacing="3",
         ),
-        
+
         # Log Viewer (Console Mirror) - Full Width
         rx.vstack(
             log_viewer(ExtractState.extraction_logs),
             width="100%",
             spacing="3",
         ),
-        
+
         # Info
         rx.callout(
             "ℹ️ Extraction may take several minutes. Logs are mirrored from console output.",
             color_scheme="gray",
         ),
-        
+
+        width="100%",
+        spacing="5",
+        margin_top="32px",
+    )
+
+
+def page() -> rx.Component:
+    """Extract Page - Multiple Tabs"""
+    return page_container([
+        page_header(
+            "🎬 Extract & Script Generation",
+            "Extract Subtitles from Video/Audio or Generate Scripts from Stories"
+        ),
+
+        # Tabs
+        rx.tabs.root(
+            rx.tabs.list(
+                rx.tabs.trigger("📖 Story → Script", value="story"),
+                rx.tabs.trigger("🎤 STT Subtitle Extraction", value="stt"),
+            ),
+            rx.tabs.content(story_script_tab(), value="story"),
+            rx.tabs.content(stt_extraction_tab(), value="stt"),
+            default_value="story",
+            width="100%",
+            margin_bottom="32px",
+        ),
+
     ], max_width="1200px")

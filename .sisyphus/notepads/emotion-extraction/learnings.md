@@ -1,3 +1,0 @@
-Implemented in-text emotion extraction in ui/states/audio_state.py using regex r'^\((.*?)\)\s*(.*)'. The extracted emotion is passed to TTSConfig via extra_options['instruct'].
-The regex r"^\((.*?)\)\s*(.*)" correctly extracts the first parenthesized tag as an instruction and the remainder as text, handling cases with and without leading tags, and multiple tags correctly (only capturing the first).
-The regex r"^\((.*?)\)\s*(.*)" correctly extracts the first parenthesized tag as an instruction and the remainder as text, handling cases with and without leading tags, and multiple tags correctly (only capturing the first).

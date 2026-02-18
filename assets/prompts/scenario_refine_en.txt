@@ -4,11 +4,11 @@ Convert the following script into a dedicated XML format for TTS generation in '
 {input_json}
 
 # Output Format (XML):
+# IMPORTANT: Each speaker tag MUST be on a separate line for readability
 <script>
-    <speaker1>Content</speaker1>
-    <speaker2>Content</speaker2>
-    <speaker3>Content</speaker3>
-    ...
+    <speaker1>Content line 1</speaker1>
+    <speaker2>Content line 2</speaker2>
+    <speaker3>Content line 3</speaker3>
 </script>
 
 # STRICT RULES:
@@ -19,6 +19,12 @@ Convert the following script into a dedicated XML format for TTS generation in '
     - '&' -> 'and'
 
 2. **Preservation**: **CRITICAL**: Do NOT summarize, verify, or change the meaning. Do NOT change any other words. Keep the meaning and structure exactly identical.
-3. **Structure**: Use the exact 'tag' provided in input as the XML tag name.
 
-Output ONLY the raw XML string. No markdown code blocks.
+3. **Structure**: 
+   - Use the exact 'tag' provided in input as the XML tag name
+   - **EACH speaker tag MUST be on its own line**
+   - **Add line breaks between tags for readability**
+
+4. **Validation**: Output MUST be a valid XML enclosed in <script> tags with proper line breaks.
+
+Output ONLY the raw XML string. No markdown code blocks. Make sure each tag is on a separate line.
