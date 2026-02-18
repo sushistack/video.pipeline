@@ -974,7 +974,6 @@ class ScenarioState(rx.State):
             for lang in ["ja", "ko", "en"]:
                 srt_path = subtitle_dir / f"{lang}.srt"
                 if not srt_path.exists():
-                    print(f"Skipping {lang}: SRT not found.")
                     continue
 
                 content = srt_path.read_text(encoding="utf-8")
