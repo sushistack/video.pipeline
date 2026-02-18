@@ -98,9 +98,9 @@ def page() -> rx.Component:
             rx.text("Target Languages", weight="bold"),
             rx.hstack(
                 rx.button(
-                    "🇯🇵 Japanese",
-                    variant=rx.cond(ExtractState.target_ja, "solid", "outline"),
-                    on_click=ExtractState.set_target_ja(~ExtractState.target_ja),
+                    "🇰🇷 Korean",
+                    variant=rx.cond(ExtractState.target_ko, "solid", "outline"),
+                    on_click=ExtractState.set_target_ko(~ExtractState.target_ko),
                     disabled=ExtractState.is_extracting,
                 ),
                 rx.button(
@@ -110,9 +110,9 @@ def page() -> rx.Component:
                     disabled=ExtractState.is_extracting,
                 ),
                 rx.button(
-                    "🇰🇷 Korean",
-                    variant=rx.cond(ExtractState.target_ko, "solid", "outline"),
-                    on_click=ExtractState.set_target_ko(~ExtractState.target_ko),
+                    "🇯🇵 Japanese",
+                    variant=rx.cond(ExtractState.target_ja, "solid", "outline"),
+                    on_click=ExtractState.set_target_ja(~ExtractState.target_ja),
                     disabled=ExtractState.is_extracting,
                 ),
                 spacing="4",

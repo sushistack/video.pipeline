@@ -192,17 +192,18 @@ def page() -> rx.Component:
                     ),
                     rx.tabs.root(
                         rx.tabs.list(
-                            rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
-                            rx.tabs.trigger("🇺🇸 English", value="en"),
                             rx.tabs.trigger("🇰🇷 Korean", value="ko"),
+                            rx.tabs.trigger("🇺🇸 English", value="en"),
+                            rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
                         ),
+                        # Korean Tab
                         rx.tabs.content(
                             rx.scroll_area(
                                 rx.vstack(
                                     rx.cond(
-                                        AudioState.generated_audios["ja"],
+                                        AudioState.generated_audios["ko"],
                                         rx.foreach(
-                                            AudioState.generated_audios["ja"],
+                                            AudioState.generated_audios["ko"],
                                             lambda file: rx.card(
                                                 rx.vstack(
                                                     rx.hstack(
@@ -218,7 +219,7 @@ def page() -> rx.Component:
                                                                     rx.icon("check"),
                                                                     on_click=AudioState.delete_audio(
                                                                         file["name"],
-                                                                        "ja",
+                                                                        "ko",
                                                                     ),
                                                                     color_scheme="red",
                                                                     variant="soft",
@@ -228,7 +229,7 @@ def page() -> rx.Component:
                                                                     rx.icon("undo-2"),
                                                                     on_click=AudioState.toggle_delete_confirm(
                                                                         file["name"],
-                                                                        "ja",
+                                                                        "ko",
                                                                     ),
                                                                     variant="soft",
                                                                     size="1",
@@ -238,7 +239,7 @@ def page() -> rx.Component:
                                                             rx.icon_button(
                                                                 rx.icon("trash-2"),
                                                                 on_click=AudioState.toggle_delete_confirm(
-                                                                    file["name"], "ja"
+                                                                    file["name"], "ko"
                                                                 ),
                                                                 color_scheme="red",
                                                                 variant="ghost",
@@ -267,10 +268,10 @@ def page() -> rx.Component:
                                         ),
                                     ),
                                     rx.cond(
-                                        AudioState.has_more["ja"],
+                                        AudioState.has_more["ko"],
                                         rx.button(
                                             "Load More",
-                                            on_click=lambda: AudioState.load_more("ja"),
+                                            on_click=lambda: AudioState.load_more("ko"),
                                             size="2",
                                             variant="ghost",
                                             width="100%",
@@ -288,8 +289,9 @@ def page() -> rx.Component:
                                     "border": "1px solid var(--gray-6)",
                                 },
                             ),
-                            value="ja",
+                            value="ko",
                         ),
+                        # English Tab
                         rx.tabs.content(
                             rx.scroll_area(
                                 rx.vstack(
@@ -383,13 +385,14 @@ def page() -> rx.Component:
                             ),
                             value="en",
                         ),
+                        # Japanese Tab
                         rx.tabs.content(
                             rx.scroll_area(
                                 rx.vstack(
                                     rx.cond(
-                                        AudioState.generated_audios["ko"],
+                                        AudioState.generated_audios["ja"],
                                         rx.foreach(
-                                            AudioState.generated_audios["ko"],
+                                            AudioState.generated_audios["ja"],
                                             lambda file: rx.card(
                                                 rx.vstack(
                                                     rx.hstack(
@@ -405,7 +408,7 @@ def page() -> rx.Component:
                                                                     rx.icon("check"),
                                                                     on_click=AudioState.delete_audio(
                                                                         file["name"],
-                                                                        "ko",
+                                                                        "ja",
                                                                     ),
                                                                     color_scheme="red",
                                                                     variant="soft",
@@ -415,7 +418,7 @@ def page() -> rx.Component:
                                                                     rx.icon("undo-2"),
                                                                     on_click=AudioState.toggle_delete_confirm(
                                                                         file["name"],
-                                                                        "ko",
+                                                                        "ja",
                                                                     ),
                                                                     variant="soft",
                                                                     size="1",
@@ -425,7 +428,7 @@ def page() -> rx.Component:
                                                             rx.icon_button(
                                                                 rx.icon("trash-2"),
                                                                 on_click=AudioState.toggle_delete_confirm(
-                                                                    file["name"], "ko"
+                                                                    file["name"], "ja"
                                                                 ),
                                                                 color_scheme="red",
                                                                 variant="ghost",
@@ -453,10 +456,10 @@ def page() -> rx.Component:
                                         ),
                                     ),
                                     rx.cond(
-                                        AudioState.has_more["ko"],
+                                        AudioState.has_more["ja"],
                                         rx.button(
                                             "Load More",
-                                            on_click=lambda: AudioState.load_more("ko"),
+                                            on_click=lambda: AudioState.load_more("ja"),
                                             size="2",
                                             variant="ghost",
                                             width="100%",
@@ -474,9 +477,9 @@ def page() -> rx.Component:
                                     "border": "1px solid var(--gray-6)",
                                 },
                             ),
-                            value="ko",
+                            value="ja",
                         ),
-                        default_value="ja",
+                        default_value="ko",
                         width="100%",
                     ),
                     width="100%",
