@@ -310,27 +310,36 @@ class ReviewState(rx.State):
         """Save all changes back to SRT files (excluding deleted rows)"""
         if not self.current_project:
             return rx.toast.error("No project selected!")
-        
+
         # Filter out deleted rows
         active_subtitles = [row for row in self.subtitles if row["id"] not in self.deleted_rows]
-        
+
         project_path = PARENT_DIR / "workspace" / self.current_project / "subtitles"
         cg = CaptionGenerator()
-        
+
+        # Only save SRT files that exist (don't create new ones)
+        langs_to_save = []
+        if self.has_ja_srt:
+            langs_to_save.append("ja")
+        if self.has_ko_srt:
+            langs_to_save.append("ko")
+        if self.has_en_srt:
+            langs_to_save.append("en")
+
         # Prepare data for saving
-        for lang in ["ja", "ko", "en"]:
+        for lang in langs_to_save:
             srt_data = []
             for row in active_subtitles:
                 text = row[f"text_{lang}"]
                 if row["speaker"]:
                     text = f"[{row['speaker']}]: {text}"
-                
+
                 srt_data.append({
                     "start": row["start"],
                     "end": row["end"],
                     f"text_{lang}": text
                 })
-            
+
             cg._save_srt(srt_data, project_path / f"{lang}.srt", lang)
-        
+
         return rx.toast.success(f"Saved {len(active_subtitles)} rows (excluded {len(self.deleted_rows)} deleted)!")
