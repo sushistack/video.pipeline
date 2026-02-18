@@ -1,17 +1,18 @@
 #!/bin/bash
 # Wrapper script to run reflex with AMD GPU warnings suppressed
 
-# Suppress AMD GPU warnings
-export HIP_LOG_LEVEL=4  # Only fatal errors (0=debug, 1=info, 2=warn, 3=error, 4=fatal)
+# Suppress AMD GPU and HIP runtime warnings
+export HIP_LOG_LEVEL=4
 export AMD_LOG_LEVEL=4
-export PYTHONWARNINGS="ignore"
-export TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
-
-# Suppress HIP runtime logs
 export ROCM_LOG_LEVEL=4
 export HSA_LOG_LEVEL=4
 export PAL_LOG_LEVEL=4
+export PYTHONWARNINGS="ignore"
 
-# Run reflex
+# Suppress transformers/accelerate logging
+export TRANSFORMERS_VERBOSITY=error
+export ACCELERATE_VERBOSITY=error
+
+# Run reflex and filter HIP logs
 cd "$(dirname "$0")"
-exec reflex run "$@"
+exec .venv/bin/reflex run "$@" 2>&1 | grep -v -E "(hip_device_runtime|hipSetDevice|hipGetDevice|hipSuccess|amdgpu.ids)"
