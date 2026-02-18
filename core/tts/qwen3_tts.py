@@ -22,21 +22,21 @@ class Qwen3TTSProvider(TTSProvider):
     """
 
     # Available model configurations
-    # Uses local models from assets/models/ if available, otherwise falls back to HuggingFace
+    # Uses symbolic links from ~/.qwen/models/ if available, otherwise assets/models/
     MODEL_CONFIGS = {
         "CustomVoice": {
             "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
-            "local_path": Path(__file__).parent.parent.parent / "assets" / "models" / "Qwen3-TTS-12Hz-1.7B-CustomVoice",
+            "local_path": Path.home() / ".qwen" / "models" / "Qwen3-TTS-12Hz-1.7B-CustomVoice",
             "type": "custom_voice",
         },
         "Base": {
             "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-            "local_path": Path(__file__).parent.parent.parent / "assets" / "models" / "Qwen3-TTS-12Hz-1.7B-Base",
+            "local_path": Path.home() / ".qwen" / "models" / "Qwen3-TTS-12Hz-1.7B-Base",
             "type": "base",
         },
         "VoiceDesign": {
             "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-            "local_path": Path(__file__).parent.parent.parent / "assets" / "models" / "Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+            "local_path": Path.home() / ".qwen" / "models" / "Qwen3-TTS-12Hz-1.7B-VoiceDesign",
             "type": "voice_design",
         },
     }
@@ -163,15 +163,15 @@ class Qwen3TTSProvider(TTSProvider):
         # Use local model if available, otherwise use HuggingFace model_id
         model_path = None
         log_msg = ""
-        cache_dir = self.base_dir / "assets" / "models" / ".cache"
         
         if local_path and local_path.exists():
             model_path = str(local_path)
-            log_msg = f"[*] Using local model: {model_path}"
+            log_msg = f"[*] Using model from ~/.qwen/models/: {model_path}"
         else:
-            model_path = model_id
-            # Create cache directory for HuggingFace models
+            # Fallback to assets/models/.cache/
+            cache_dir = self.base_dir / "assets" / "models" / ".cache"
             cache_dir.mkdir(parents=True, exist_ok=True)
+            model_path = model_id
             log_msg = f"[*] Downloading/loading model from HuggingFace: {model_id} (cache: {cache_dir})"
 
         # Determine device and dtype
@@ -182,8 +182,11 @@ class Qwen3TTSProvider(TTSProvider):
         load_kwargs = {
             "device_map": device,
             "dtype": dtype,
-            "cache_dir": str(cache_dir),
         }
+        
+        # Only use cache_dir if not using local model
+        if not (local_path and local_path.exists()):
+            load_kwargs["cache_dir"] = str(self.base_dir / "assets" / "models" / ".cache")
 
         # Use flash attention only if the package is actually installed
         # Check by trying to import flash_attn
