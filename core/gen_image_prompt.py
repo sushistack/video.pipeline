@@ -323,87 +323,73 @@ class ImagePromptGenerator:
         Build the prompt request for Gemini API.
         """
         return f"""
-You are an expert AI image prompt engineer for video production. Your task is to create detailed, high-quality image prompts for video scenes based on narration scripts.
+You are an expert AI image prompt engineer for video production. Create strategic, focused image prompts.
 
-**CRITICAL: ALL OUTPUT MUST BE IN ENGLISH ONLY. DO NOT USE ANY OTHER LANGUAGE.**
+**CRITICAL: ALL OUTPUT MUST BE IN ENGLISH ONLY.**
 
-## Section Information
+## Section Info
 - **Title**: {section_title}
 - **Type**: {section_type}
-- **Duration**: {section_duration} seconds
-- **Position**: Section {section_index + 1} of {total_sections}
+- **Duration**: {section_duration} sec
+- **Position**: {section_index + 1}/{total_sections}
 - **Narration**: {section_content}
 
-## Previous Context (for continuity)
-{previous_context if previous_context else "This is the first section."}
+## Context
+{previous_context if previous_context else "First section."}
 
-## Your Task
+## Prompt Engineering Principles
 
-Generate a **highly detailed** image prompt that:
+**Be Strategic, Not Exhaustive:**
+1. **Core First**: Lead with the most important subject and action
+2. **Progressive Detail**: Establish the big picture first, then add key details
+3. **Subtract, Don't Add**: Use negative prompts to remove unwanted elements rather than stacking descriptors
+4. **Focus**: Like a buffet plate—too many items ruin the experience. Prioritize the main "flavors"
 
-1. **Visual Quality**: Optimized for high-end AI image generators (Midjourney, Stable Diffusion, DALL-E 3)
-2. **Continuity**: Maintains visual consistency with previous sections (characters, settings, color palette, lighting)
-3. **Cinematic**: Uses professional cinematography terminology
-4. **Specific**: Includes concrete visual details, not abstract concepts
-5. **Emotional**: Captures the mood and tone of the narration
+**Quality Over Quantity:**
+- One strong, clear image > cluttered description
+- Strategic details > exhaustive lists
+- Clean composition > visual chaos
 
-**LANGUAGE REQUIREMENT: All JSON field values MUST be in English. No Korean, Japanese, Chinese, or any other language. English only.**
+## Required Elements (Prioritized)
 
-## Required Details - MUST INCLUDE:
-
-### Scene Description:
-- **Location**: Where does this take place? (indoor/outdoor, specific place)
-- **Time**: Time of day, weather conditions, season
-- **Atmosphere**: Fog, dust, rain, snow, etc.
-- **Background elements**: What's visible in the background?
-
-### Character Description (if applicable):
-- **Physical appearance**: Age, gender, height, build, hair color/style, eye color
-- **Clothing**: Specific outfit details, colors, textures, accessories
-- **Posture/Expression**: Body language, facial expression, emotional state
-- **Position**: Where are they in the frame? What are they doing?
-
-### Technical Details:
-- **Camera angle**: Eye-level, low angle, high angle, dutch angle
-- **Shot size**: Extreme wide, wide, medium, close-up, extreme close-up
-- **Lens**: 24mm, 35mm, 50mm, 85mm, etc.
-- **Depth of field**: Shallow, deep, bokeh effect
-- **Lighting direction**: Front, side, back, top, under lighting
+1. **Subject**: Main character/object (physical traits, clothing, expression, position)
+2. **Scene**: Location, time, weather, atmosphere
+3. **Technical**: Camera angle, shot size, lighting direction
+4. **Mood**: Emotional tone, color palette
 
 ## Output Format
 
-Return ONLY a JSON object with these fields. **ALL VALUES IN ENGLISH:**
+Return ONLY JSON with these fields. **ALL VALUES IN ENGLISH:**
 
 ```json
 {{
-  "prompt": "EXTREMELY detailed cinematic image prompt. Must include: [SCENE: location, time, weather, atmosphere] + [CHARACTERS: full physical description, clothing, expression, position] + [TECHNICAL: camera angle, shot size, lens, lighting] + [MOOD: emotional tone, color palette]. Write in vivid, descriptive English.",
-  "negative_prompt": "low quality, blurry, distorted, deformed, ugly, watermark, text, signature, cropped, worst quality, jpeg artifacts, out of focus, bad anatomy, extra limbs",
-  "style_reference": "Visual style (e.g., 'cinematic thriller', 'documentary style', 'dramatic lighting', 'neo-noir')",
-  "continuity_notes": "Notes about visual consistency with previous/next scenes (IN ENGLISH)",
-  "aspect_ratio": "16:9 or 9:16 or 1:1 or 21:9",
-  "camera": "Specific camera setup (e.g., 'wide shot, 35mm lens, eye-level angle')",
-  "lighting": "Detailed lighting (e.g., 'dramatic chiaroscuro with rim lighting')",
-  "priority_elements": ["specific element 1", "specific element 2", "specific element 3"]
+  "prompt": "Clear, focused prompt. Structure: [SUBJECT: key traits] + [SCENE: location/time] + [TECHNICAL: angle/lighting] + [MOOD: tone/colors]. Strategic details only.",
+  "negative_prompt": "cluttered, complex, busy, low quality, blurry, distorted, deformed, watermark, text",
+  "style_reference": "e.g., 'cinematic thriller', 'documentary', 'neo-noir'",
+  "continuity_notes": "Visual consistency notes (IN ENGLISH)",
+  "aspect_ratio": "16:9 or 9:16 or 21:9",
+  "camera": "e.g., 'wide shot, 35mm, eye-level'",
+  "lighting": "e.g., 'dramatic chiaroscuro, rim lighting'",
+  "priority_elements": ["element 1", "element 2", "element 3"]
 }}
 ```
 
 ## Examples
 
-### Good Prompt Example:
-"EXTREME WIDE SHOT: Snow-covered mountain peak at dusk, swirling blizzard with visible wind streaks. A PALE FIGURE stands center frame - emaciated humanoid, 2.4 meters tall, alabaster white skin with no visible pigmentation, extremely long arms reaching past knees, sparse white hair matted against skull, face turned slightly away showing sharp angular jawline. Figure wears tattered gray fabric draped over one shoulder. BACKGROUND: Jagged mountain ridges fading into fog, darkening purple-orange sky. LIGHTING: Dramatic rim lighting from setting sun creates silhouette effect, cold blue fill light from snow reflection. CAMERA: 24mm wide lens, slight low angle to emphasize height and isolation. MOOD: Oppressive dread, overwhelming isolation, primal fear. COLOR PALETTE: Desaturated whites and grays, cold blues, muted purple sky. 8K photorealistic, cinematic composition."
+### Good (Focused & Strategic):
+"Tall humanoid figure, center frame—pale white skin, extremely long arms past knees, sparse white hair, sharp angular jaw. Snow-covered mountain peak at dusk, blizzard swirling. 24mm wide lens, low angle, dramatic rim lighting from sunset, cold blue fill from snow. Mood: isolation, dread. Desaturated whites/grays, cold blues. 8K, cinematic."
 
-### Bad Prompt Example (DO NOT):
-"A scary monster on a mountain" ← Too vague, no details!
-"산 위의 무서운 괴물" ← NOT ENGLISH!
+### Bad (Cluttered):
+"A scary monster on a mountain, very tall and white, with long arms and weird hair, looking scary, dark sky, cold, snowy, wide shot, dramatic, cinematic, 8k, detailed, realistic" ← Vague, disorganized, no strategy!
 
-## For This Section Type ({section_type}):
-- **Opening/Hook**: Create intrigue with mysterious visuals, partial reveals, atmospheric tension
-- **Setup**: Establish setting clearly, introduce characters with full descriptions
-- **Development**: Show action, movement, changing expressions, dynamic compositions
-- **Climax**: Maximum visual impact, dramatic lighting, intense expressions, dynamic angles
-- **Resolution**: Provide visual closure, softer lighting, resolved compositions
+## Section Types
+- **Opening/Hook**: Mysterious, partial reveals, atmospheric
+- **Setup**: Clear setting, full character descriptions
+- **Development**: Dynamic action, changing expressions
+- **Climax**: Maximum impact, dramatic lighting, intense
+- **Resolution**: Visual closure, softer lighting
 
-Generate the JSON now. Output ONLY the JSON in ENGLISH, no other text. **ENGLISH ONLY!**
+Generate the JSON now. Output ONLY JSON in ENGLISH.
 """
     
     def _classify_section(self, section_index: int, total_sections: int) -> str:
