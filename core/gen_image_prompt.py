@@ -51,6 +51,7 @@ class ImagePromptGenerator:
     ) -> dict:
         """
         Generate 2 image prompts for a single section with different angles/focus.
+        Both prompts share the same scene/character but with different framing.
         """
         try:
             # Build prompt context
@@ -72,10 +73,26 @@ class ImagePromptGenerator:
                 total_sections=total_sections
             )
 
-            # Call Gemini to generate 2 image prompts
+            # Call Gemini to generate 2 image prompts with SHARED elements
             response = self.gemini_client.models.generate_content(
                 model=self.gemini_model,
-                contents=prompt_request + "\n\nGenerate 2 DIFFERENT image prompts for this section - one focusing on the main subject/character, another focusing on the environment/context. Return as JSON array with 2 objects.",
+                contents=prompt_request + """
+
+**CRITICAL: Generate 2 image prompts for the SAME scene with different focus points.**
+
+**SHARED ELEMENTS (Must be identical in both prompts):**
+- Same character/subject (identical physical description, clothing, pose)
+- Same location and time
+- Same lighting conditions and color palette
+- Same mood and atmosphere
+
+**DIFFERENT FOCUS:**
+- **Prompt 1 (Subject Focus)**: Character fills 60-70% of frame. Close-up or medium shot. Background is blurred or simplified. Emphasis on facial expression, details of clothing, body language.
+- **Prompt 2 (Environment Focus)**: Character fills 20-30% of frame. Wide or extreme wide shot. Background is detailed and sharp. Emphasis on location, atmosphere, scale, context. Character is still visible and recognizable but smaller in frame.
+
+**VISUAL CONTINUITY:** Both prompts must look like photographs taken from the same scene, same moment, same lighting - just different camera distances. A viewer should recognize these as the same character in the same place at the same time.
+
+Return as JSON array with exactly 2 objects: [{"prompt": "...", ...}, {"prompt": "...", ...}]""",
                 config=types.GenerateContentConfig(
                     temperature=0.7,
                     top_p=0.9,
@@ -86,7 +103,7 @@ class ImagePromptGenerator:
 
             # Parse response
             prompt_json = self._parse_json_response(response.text)
-            
+
             # Handle both list and dict responses
             if isinstance(prompt_json, list) and len(prompt_json) >= 2:
                 # Got 2 prompts as array - this is what we want!
@@ -280,6 +297,21 @@ Return ONLY JSON with these fields. **ALL VALUES IN ENGLISH:**
 - **Development**: Character action/expression + dynamic background elements
 - **Climax**: Character intense emotion + dramatic extreme background
 - **Resolution**: Character resolved state + softer background, visual closure
+
+## Two Prompt Variations - SAME SCENE, DIFFERENT FRAMING
+
+You will generate 2 prompts for this section. They must share core elements:
+
+**SHARED (Identical in both):**
+- Character name, physical description, clothing, pose
+- Location, time of day, weather conditions
+- Lighting direction, color palette, mood
+
+**DIFFERENT:**
+- **Prompt 1 (Subject Focus)**: "close-up shot, medium shot, character fills 60-70% of frame, shallow depth of field, background blurred, focus on facial expression and details"
+- **Prompt 2 (Environment Focus)**: "wide shot, extreme wide shot, character fills 20-30% of frame, deep focus, background sharp and detailed, emphasis on location scale and atmosphere"
+
+Think of it as: Same photographer, same scene, same moment - just took two photos from different distances.
 
 Generate the JSON now. Output ONLY JSON in ENGLISH. Focus on CHARACTER and BACKGROUND for visual storytelling.
 """
