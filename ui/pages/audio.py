@@ -18,6 +18,12 @@ def page() -> rx.Component:
     """Audio Tab - TTS Generation"""
     return page_container(
         [
+            # Hidden on_mount trigger
+            rx.box(
+                on_mount=AudioState.on_load,
+                display="none",
+            ),
+            
             page_header(
                 "🎙️ Text-to-Speech Generation",
                 "Generate audio with GPT-SoVITS or Qwen3-TTS",
@@ -560,5 +566,4 @@ def page() -> rx.Component:
             log_viewer(AudioState.generation_logs),
         ],
         max_width="1200px",
-        on_mount=AudioState.on_load,
     )
