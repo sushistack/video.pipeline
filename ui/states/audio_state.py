@@ -223,6 +223,7 @@ class AudioState(rx.State):
     def set_selected_project(self, value: str):
         self.selected_project = value
         if value:
+            self._check_scenario_files()
             self.load_generated_audios()
 
     def set_selected_provider(self, value: str):
@@ -343,6 +344,9 @@ class AudioState(rx.State):
     def on_load(self):
         """Called when page loads"""
         self.load_projects()
+        # Check scenario files for initially selected project
+        if self.selected_project:
+            self._check_scenario_files()
 
     def load_projects(self):
         """Scan for projects with scenario files"""
@@ -358,6 +362,19 @@ class AudioState(rx.State):
             # Auto-select first project in AudioState
             if self.available_projects and not self.selected_project:
                 self.set_selected_project(self.available_projects[0])
+
+    def _check_scenario_files(self):
+        """Check scenario_{lang}.xml existence for current project"""
+        if not self.selected_project:
+            self.has_ko_scenario = False
+            self.has_en_scenario = False
+            self.has_ja_scenario = False
+            return
+
+        project_dir = PARENT_DIR / "workspace" / self.selected_project
+        self.has_ko_scenario = (project_dir / "scenario_ko.xml").exists()
+        self.has_en_scenario = (project_dir / "scenario_en.xml").exists()
+        self.has_ja_scenario = (project_dir / "scenario_ja.xml").exists()
 
     def log(self, message: str):
         """Add log message with overwrite for progress bars"""

@@ -175,6 +175,7 @@ def page() -> rx.Component:
                                     rx.cond(AudioState.gen_ko, "blue", "gray"),
                                     "gray"
                                 ),
+                                disabled=~AudioState.has_ko_scenario,
                             ),
                             rx.button(
                                 "🇺🇸 English",
@@ -192,6 +193,7 @@ def page() -> rx.Component:
                                     rx.cond(AudioState.gen_en, "blue", "gray"),
                                     "gray"
                                 ),
+                                disabled=~AudioState.has_en_scenario,
                             ),
                             rx.button(
                                 "🇯🇵 Japanese",
@@ -209,6 +211,7 @@ def page() -> rx.Component:
                                     rx.cond(AudioState.gen_ja, "blue", "gray"),
                                     "gray"
                                 ),
+                                disabled=~AudioState.has_ja_scenario,
                             ),
                             spacing="4",
                         ),
@@ -237,25 +240,28 @@ def page() -> rx.Component:
                     ),
                     rx.tabs.root(
                         rx.tabs.list(
-                            rx.cond(
-                                AudioState.has_ko_scenario,
-                                rx.tabs.trigger("🇰🇷 Korean", value="ko"),
+                            rx.tabs.trigger(
+                                "🇰🇷 Korean",
+                                value="ko",
+                                disabled=~AudioState.has_ko_scenario,
                             ),
-                            rx.cond(
-                                AudioState.has_en_scenario,
-                                rx.tabs.trigger("🇺🇸 English", value="en"),
+                            rx.tabs.trigger(
+                                "🇺🇸 English",
+                                value="en",
+                                disabled=~AudioState.has_en_scenario,
                             ),
-                            rx.cond(
-                                AudioState.has_ja_scenario,
-                                rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
+                            rx.tabs.trigger(
+                                "🇯🇵 Japanese",
+                                value="ja",
+                                disabled=~AudioState.has_ja_scenario,
                             ),
                         ),
                         # Korean Tab
                         rx.tabs.content(
-                            rx.cond(
-                                AudioState.has_ko_scenario,
-                                rx.scroll_area(
-                                    rx.vstack(
+                            rx.scroll_area(
+                                rx.vstack(
+                                    rx.cond(
+                                        AudioState.has_ko_scenario,
                                         rx.cond(
                                             AudioState.generated_audios["ko"],
                                             rx.foreach(
@@ -323,6 +329,14 @@ def page() -> rx.Component:
                                                 font_style="italic",
                                             ),
                                         ),
+                                        rx.text(
+                                            "Scenario file not available for Korean",
+                                            color="gray",
+                                            font_style="italic",
+                                        ),
+                                    ),
+                                    rx.cond(
+                                        AudioState.has_ko_scenario,
                                         rx.cond(
                                             AudioState.has_more["ko"],
                                             rx.button(
@@ -333,28 +347,27 @@ def page() -> rx.Component:
                                                 width="100%",
                                             ),
                                         ),
-                                        spacing="2",
                                     ),
-                                    type="always",
-                                    scrollbars="vertical",
-                                    style={
-                                        "height": "400px",
-                                        "padding": "20px",
-                                        "backgroundColor": "var(--gray-2)",
-                                        "borderRadius": "12px",
-                                        "border": "1px solid var(--gray-6)",
-                                    },
+                                    spacing="2",
                                 ),
-                                rx.text("Scenario not available for Korean", color="gray", font_style="italic"),
+                                type="always",
+                                scrollbars="vertical",
+                                style={
+                                    "height": "400px",
+                                    "padding": "20px",
+                                    "backgroundColor": "var(--gray-2)",
+                                    "borderRadius": "12px",
+                                    "border": "1px solid var(--gray-6)",
+                                },
                             ),
                             value="ko",
                         ),
                         # English Tab
                         rx.tabs.content(
-                            rx.cond(
-                                AudioState.has_en_scenario,
-                                rx.scroll_area(
-                                    rx.vstack(
+                            rx.scroll_area(
+                                rx.vstack(
+                                    rx.cond(
+                                        AudioState.has_en_scenario,
                                         rx.cond(
                                             AudioState.generated_audios["en"],
                                             rx.foreach(
@@ -421,6 +434,14 @@ def page() -> rx.Component:
                                                 font_style="italic",
                                             ),
                                         ),
+                                        rx.text(
+                                            "Scenario file not available for English",
+                                            color="gray",
+                                            font_style="italic",
+                                        ),
+                                    ),
+                                    rx.cond(
+                                        AudioState.has_en_scenario,
                                         rx.cond(
                                             AudioState.has_more["en"],
                                             rx.button(
@@ -431,28 +452,27 @@ def page() -> rx.Component:
                                                 width="100%",
                                             ),
                                         ),
-                                        spacing="2",
                                     ),
-                                    type="always",
-                                    scrollbars="vertical",
-                                    style={
-                                        "height": "400px",
-                                        "padding": "20px",
-                                        "backgroundColor": "var(--gray-2)",
-                                        "borderRadius": "12px",
-                                        "border": "1px solid var(--gray-6)",
-                                    },
+                                    spacing="2",
                                 ),
-                                rx.text("Scenario not available for English", color="gray", font_style="italic"),
+                                type="always",
+                                scrollbars="vertical",
+                                style={
+                                    "height": "400px",
+                                    "padding": "20px",
+                                    "backgroundColor": "var(--gray-2)",
+                                    "borderRadius": "12px",
+                                    "border": "1px solid var(--gray-6)",
+                                },
                             ),
                             value="en",
                         ),
                         # Japanese Tab
                         rx.tabs.content(
-                            rx.cond(
-                                AudioState.has_ja_scenario,
-                                rx.scroll_area(
-                                    rx.vstack(
+                            rx.scroll_area(
+                                rx.vstack(
+                                    rx.cond(
+                                        AudioState.has_ja_scenario,
                                         rx.cond(
                                             AudioState.generated_audios["ja"],
                                             rx.foreach(
@@ -519,6 +539,14 @@ def page() -> rx.Component:
                                                 font_style="italic",
                                             ),
                                         ),
+                                        rx.text(
+                                            "Scenario file not available for Japanese",
+                                            color="gray",
+                                            font_style="italic",
+                                        ),
+                                    ),
+                                    rx.cond(
+                                        AudioState.has_ja_scenario,
                                         rx.cond(
                                             AudioState.has_more["ja"],
                                             rx.button(
@@ -529,23 +557,28 @@ def page() -> rx.Component:
                                                 width="100%",
                                             ),
                                         ),
-                                        spacing="2",
                                     ),
-                                    type="always",
-                                    scrollbars="vertical",
-                                    style={
-                                        "height": "400px",
-                                        "padding": "20px",
-                                        "backgroundColor": "var(--gray-2)",
-                                        "borderRadius": "12px",
-                                        "border": "1px solid var(--gray-6)",
-                                    },
+                                    spacing="2",
                                 ),
-                                rx.text("Scenario not available for Japanese", color="gray", font_style="italic"),
+                                type="always",
+                                scrollbars="vertical",
+                                style={
+                                    "height": "400px",
+                                    "padding": "20px",
+                                    "backgroundColor": "var(--gray-2)",
+                                    "borderRadius": "12px",
+                                    "border": "1px solid var(--gray-6)",
+                                },
                             ),
                             value="ja",
                         ),
                         default_value=rx.cond(
+                            AudioState.has_ko_scenario, "ko",
+                            rx.cond(AudioState.has_en_scenario, "en",
+                                rx.cond(AudioState.has_ja_scenario, "ja", "")
+                            )
+                        ),
+                        value=rx.cond(
                             AudioState.has_ko_scenario, "ko",
                             rx.cond(AudioState.has_en_scenario, "en",
                                 rx.cond(AudioState.has_ja_scenario, "ja", "")
