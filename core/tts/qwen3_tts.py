@@ -1,9 +1,17 @@
 """Qwen3-TTS Provider implementation."""
 
 import re
+import warnings
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 import asyncio
+
+# Suppress warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*flash-attn.*")
+warnings.filterwarnings("ignore", message=".*Flash Efficient attention.*")
+warnings.filterwarnings("ignore", message=".*Mem Efficient attention.*")
+warnings.filterwarnings("ignore", message=".*MIOpen.*")
 
 from .base import (
     TTSProvider,
