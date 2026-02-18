@@ -255,6 +255,12 @@ def language_speaker_config(lang: str, lang_display: str, flag: str) -> rx.Compo
 def page() -> rx.Component:
     """Scenario Tab"""
     return page_container([
+        # Hidden on_mount trigger
+        rx.box(
+            on_mount=ScenarioState.on_load,
+            display="none",
+        ),
+        
         page_header("🎬 Scenario Generation", "Configure voice files for each speaker"),
 
         project_selector(
@@ -324,4 +330,4 @@ def page() -> rx.Component:
             margin_top="3",
         ),
 
-    ], max_width="1400px", on_mount=ScenarioState.on_load)
+    ], max_width="1400px")
