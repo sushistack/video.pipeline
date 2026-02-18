@@ -1085,17 +1085,23 @@ class SubtitleState(rx.State):
 
     def on_load(self):
         """Load projects"""
+        print("[DEBUG] AudioState.on_load called")
+        
         output_root = PARENT_DIR / "workspace"
         if output_root.exists():
             projects = [p.name for p in output_root.iterdir() if p.is_dir()]
             self.available_projects = sorted(projects)
+            print(f"[DEBUG] Found projects: {self.available_projects}")
 
-            # Auto-select first project in SubtitleState
+            # Auto-select first project
             if self.available_projects and not self.selected_project:
-                self.set_selected_project(self.available_projects[0])
-
-        if self.selected_project:
-            self._load_resources()
+                self.selected_project = self.available_projects[0]
+                print(f"[DEBUG] Auto-selected project: {self.selected_project}")
+                self._load_resources()  # Explicitly call after setting
+            elif self.selected_project:
+                # Project already selected (e.g., from user action)
+                print(f"[DEBUG] Project already selected: {self.selected_project}")
+                self._load_resources()
 
     def _load_resources(self):
         """Scan audios and SRTs for the selected project"""
