@@ -1,6 +1,5 @@
 """Qwen3-TTS Provider implementation."""
 
-import sys
 import re
 from pathlib import Path
 from typing import AsyncGenerator, Optional
@@ -67,11 +66,6 @@ class Qwen3TTSProvider(TTSProvider):
         super().__init__(base_dir)
         self._model = None
         self._current_model_config: Optional[ModelConfig] = None
-
-        # Add Qwen3-TTS to path
-        qwen_tts_path = base_dir / "external" / "Qwen3-TTS"
-        if qwen_tts_path.exists() and str(qwen_tts_path) not in sys.path:
-            sys.path.insert(0, str(qwen_tts_path))
 
     @property
     def provider_type(self) -> TTSProviderType:
@@ -160,7 +154,7 @@ class Qwen3TTSProvider(TTSProvider):
             from qwen_tts import Qwen3TTSModel
         except ImportError as e:
             raise ImportError(
-                f"Failed to import Qwen3-TTS. Make sure it's installed: {e}"
+                f"Failed to import Qwen3-TTS. Install with: pip install qwen-tts. Error: {e}"
             )
 
         model_id = model.model_paths["model_id"]
