@@ -560,4 +560,5 @@ def page() -> rx.Component:
             log_viewer(AudioState.generation_logs),
         ],
         max_width="1200px",
+        on_mount=AudioState.on_load,
     )

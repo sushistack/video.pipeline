@@ -1107,9 +1107,20 @@ class SubtitleState(rx.State):
         subtitles_root = proj_root / "subtitles"
 
         # Check scenario XML files
-        self.has_ja_scenario = (proj_root / "scenario_ja.xml").exists()
-        self.has_en_scenario = (proj_root / "scenario_en.xml").exists()
-        self.has_ko_scenario = (proj_root / "scenario_ko.xml").exists()
+        ko_path = proj_root / "scenario_ko.xml"
+        en_path = proj_root / "scenario_en.xml"
+        ja_path = proj_root / "scenario_ja.xml"
+        
+        print(f"[DEBUG] Checking scenario files for {self.selected_project}:")
+        print(f"[DEBUG]   ko: {ko_path} -> {ko_path.exists()}")
+        print(f"[DEBUG]   en: {en_path} -> {en_path.exists()}")
+        print(f"[DEBUG]   ja: {ja_path} -> {ja_path.exists()}")
+        
+        self.has_ja_scenario = ja_path.exists()
+        self.has_en_scenario = en_path.exists()
+        self.has_ko_scenario = ko_path.exists()
+        
+        print(f"[DEBUG] State updated: has_ko_scenario={self.has_ko_scenario}")
 
         new_list = []
 
