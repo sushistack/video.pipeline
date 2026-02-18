@@ -161,51 +161,21 @@ def page() -> rx.Component:
                         rx.hstack(
                             rx.button(
                                 "🇰🇷 Korean",
-                                variant=rx.cond(
-                                    AudioState.has_ko_scenario,
-                                    rx.cond(AudioState.gen_ko, "solid", "outline"),
-                                    "outline"
-                                ),
+                                variant=rx.cond(AudioState.gen_ko, "solid", "outline"),
                                 on_click=AudioState.set_gen_ko(~AudioState.gen_ko),
-                                disabled=~AudioState.has_ko_scenario,
-                                opacity=rx.cond(AudioState.has_ko_scenario, 1, 0.5),
-                                color_scheme=rx.cond(
-                                    AudioState.has_ko_scenario,
-                                    rx.cond(AudioState.gen_ko, "blue", "gray"),
-                                    "gray"
-                                ),
+                                color_scheme=rx.cond(AudioState.gen_ko, "blue", "gray"),
                             ),
                             rx.button(
                                 "🇺🇸 English",
-                                variant=rx.cond(
-                                    AudioState.has_en_scenario,
-                                    rx.cond(AudioState.gen_en, "solid", "outline"),
-                                    "outline"
-                                ),
+                                variant=rx.cond(AudioState.gen_en, "solid", "outline"),
                                 on_click=AudioState.set_gen_en(~AudioState.gen_en),
-                                disabled=~AudioState.has_en_scenario,
-                                opacity=rx.cond(AudioState.has_en_scenario, 1, 0.5),
-                                color_scheme=rx.cond(
-                                    AudioState.has_en_scenario,
-                                    rx.cond(AudioState.gen_en, "blue", "gray"),
-                                    "gray"
-                                ),
+                                color_scheme=rx.cond(AudioState.gen_en, "blue", "gray"),
                             ),
                             rx.button(
                                 "🇯🇵 Japanese",
-                                variant=rx.cond(
-                                    AudioState.has_ja_scenario,
-                                    rx.cond(AudioState.gen_ja, "solid", "outline"),
-                                    "outline"
-                                ),
+                                variant=rx.cond(AudioState.gen_ja, "solid", "outline"),
                                 on_click=AudioState.set_gen_ja(~AudioState.gen_ja),
-                                disabled=~AudioState.has_ja_scenario,
-                                opacity=rx.cond(AudioState.has_ja_scenario, 1, 0.5),
-                                color_scheme=rx.cond(
-                                    AudioState.has_ja_scenario,
-                                    rx.cond(AudioState.gen_ja, "blue", "gray"),
-                                    "gray"
-                                ),
+                                color_scheme=rx.cond(AudioState.gen_ja, "blue", "gray"),
                             ),
                             spacing="4",
                         ),
@@ -234,9 +204,18 @@ def page() -> rx.Component:
                     ),
                     rx.tabs.root(
                         rx.tabs.list(
-                            rx.tabs.trigger("🇰🇷 Korean", value="ko", disabled=~AudioState.has_ko_scenario),
-                            rx.tabs.trigger("🇺🇸 English", value="en", disabled=~AudioState.has_en_scenario),
-                            rx.tabs.trigger("🇯🇵 Japanese", value="ja", disabled=~AudioState.has_ja_scenario),
+                            rx.cond(
+                                AudioState.has_ko_scenario,
+                                rx.tabs.trigger("🇰🇷 Korean", value="ko"),
+                            ),
+                            rx.cond(
+                                AudioState.has_en_scenario,
+                                rx.tabs.trigger("🇺🇸 English", value="en"),
+                            ),
+                            rx.cond(
+                                AudioState.has_ja_scenario,
+                                rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
+                            ),
                         ),
                         # Korean Tab
                         rx.tabs.content(
@@ -533,7 +512,12 @@ def page() -> rx.Component:
                             ),
                             value="ja",
                         ),
-                        default_value="ko",
+                        default_value=rx.cond(
+                            AudioState.has_ko_scenario, "ko",
+                            rx.cond(AudioState.has_en_scenario, "en",
+                                rx.cond(AudioState.has_ja_scenario, "ja", "")
+                            )
+                        ),
                         width="100%",
                     ),
                     width="100%",
