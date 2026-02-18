@@ -29,10 +29,20 @@ def page() -> rx.Component:
             on_reload_callback=ReviewState.load_projects,
         ),
 
-        # Language Checkboxes
+        # Language Checkboxes (disabled if SRT doesn't exist)
         rx.hstack(
-            rx.checkbox("🇯🇵 Japanese", checked=ReviewState.show_ja, on_change=ReviewState.set_show_ja),
-            rx.checkbox("🇺🇸 English", checked=ReviewState.show_en, on_change=ReviewState.set_show_en),
+            rx.checkbox(
+                "🇯🇵 Japanese",
+                checked=ReviewState.show_ja,
+                on_change=ReviewState.set_show_ja,
+                disabled=~ReviewState.has_ja_srt,
+            ),
+            rx.checkbox(
+                "🇺🇸 English",
+                checked=ReviewState.show_en,
+                on_change=ReviewState.set_show_en,
+                disabled=~ReviewState.has_en_srt,
+            ),
             spacing="4",
         ),
 

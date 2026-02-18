@@ -26,10 +26,15 @@ class ReviewState(rx.State):
     available_projects: list[str] = []
     current_project: str = ""
     deleted_rows: set[int] = set()  # Track deleted row IDs
-    
+
     # UI toggles
     show_en: bool = False
     show_ja: bool = False
+    
+    # Available languages for current project (based on existing SRT files)
+    has_ja_srt: bool = False
+    has_en_srt: bool = False
+    has_ko_srt: bool = True  # Always true if project loads
     
     # Setters for toggles
     def set_show_ja(self, value: bool):
@@ -135,6 +140,11 @@ class ReviewState(rx.State):
         """Load SRT files for selected project"""
         self.current_project = project_name
         project_path = PARENT_DIR / "workspace" / project_name / "subtitles"
+
+        # Check which SRT files exist
+        self.has_ja_srt = (project_path / "ja.srt").exists()
+        self.has_en_srt = (project_path / "en.srt").exists()
+        self.has_ko_srt = (project_path / "ko.srt").exists()
 
         # Parse SRTs (only if files exist)
         ja_items = parse_srt(project_path / "ja.srt") if (project_path / "ja.srt").exists() else []

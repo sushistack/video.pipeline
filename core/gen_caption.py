@@ -96,10 +96,8 @@ class CaptionGenerator:
         
         print(f"[*] Project Directory: {project_dir}")
 
-
-
-        # STEP 0: Audio Preprocessing (FFmpeg + Demucs)
-        print("[-] Step 0: Preprocessing Audio (Loudnorm + Vocal Isolation)...")
+        # STEP 0: Audio Preprocessing (FFmpeg + Vocal Enhancement)
+        print("[-] Step 0: Preprocessing Audio (Loudnorm + Vocal Enhancement)...")
         try:
             processed_audio = self._preprocess_audio(audio_path, project_dir / "temp")
             print(f"[+] Used Processed Audio: {processed_audio}")
@@ -108,69 +106,88 @@ class CaptionGenerator:
             print("[!] Falling back to original audio.")
             processed_audio = audio_path
 
-        # STEP 1: Generate Base Japanese Captions (Audio -> Text)
-        print("[-] Step 1: Generating Base Japanese Captions...")
-        captions = self._generate_base_captions(processed_audio, speaker_count)
+        # STEP 1: Generate Base Captions (Audio -> Text)
+        # If only Korean is selected, generate Korean directly
+        # Otherwise, generate Japanese as base and translate
+        print("[-] Step 1: Generating Base Captions...")
         
-        # Save JA SRT immediately
-        if "ja" in target_languages:
-            self._save_srt(captions, subtitle_dir / "ja.srt", "ja")
-
-        # STEP 2: Translation (Text -> Text)
-        if "en" in target_languages or "ko" in target_languages:
-            print("[-] Step 2: Translating Captions...")
-            captions = self._translate_captions(captions, target_languages)
-            
-            # Save Translated SRTs
-            if "en" in target_languages:
-                self._save_srt(captions, subtitle_dir / "en.srt", "en")
+        if target_languages == ["ko"]:
+            # Korean only - generate Korean directly
+            captions = self._generate_base_captions(processed_audio, speaker_count, target_language="ko")
+            # Save KO SRT
             if "ko" in target_languages:
                 self._save_srt(captions, subtitle_dir / "ko.srt", "ko")
+        else:
+            # Generate Japanese as base (default)
+            captions = self._generate_base_captions(processed_audio, speaker_count, target_language="ja")
+            
+            # Save JA SRT if requested
+            if "ja" in target_languages:
+                self._save_srt(captions, subtitle_dir / "ja.srt", "ja")
+
+            # STEP 2: Translation (Text -> Text)
+            if "en" in target_languages or "ko" in target_languages:
+                print("[-] Step 2: Translating Captions...")
+                captions = self._translate_captions(captions, target_languages)
+
+                # Save Translated SRTs
+                if "en" in target_languages:
+                    self._save_srt(captions, subtitle_dir / "en.srt", "en")
+                if "ko" in target_languages:
+                    self._save_srt(captions, subtitle_dir / "ko.srt", "ko")
 
         # STEP 3: Yomigana Extraction (Text -> Meta)
         # Only if JA is requested AND Json is generating
         if "ja" in target_languages and generate_json:
             print("[-] Step 3: Extracting Yomigana (SudachiPy)...")
             captions = self._add_yomigana(captions)
-            
+
             # Save Master JSON
             master_json_path = subtitle_dir / f"{base_name}.json"
             with open(master_json_path, "w", encoding="utf-8") as f:
                 json.dump(captions, f, indent=2, ensure_ascii=False)
             print(f"[+] Saved Master JSON: {master_json_path}")
             return master_json_path
-        
+
         return None
-    def _generate_base_captions(self, audio_path: Path, speaker_count: typing.Optional[int] = None) -> list[CaptionItem]:
+    def _generate_base_captions(self, audio_path: Path, speaker_count: typing.Optional[int] = None, target_language: str = "ja") -> list[CaptionItem]:
         # Upload using new Client
         print(f"    [*] Uploading {audio_path.name}...")
         myfile = self.client.files.upload(file=str(audio_path))
-        
+
         # Wait for processing
         while myfile.state.name == "PROCESSING":
             time.sleep(1)
             myfile = self.client.files.get(name=myfile.name)
-            
+
         print(f"    [+] File Ready: {myfile.name}")
-            
+
         speaker_hint = f"There are exactly {speaker_count} speakers." if speaker_count else "Identify different speakers if possible (e.g., 'speaker1', 'speaker2')."
 
+        # Language-specific prompt
+        lang_names = {
+            "ja": "Japanese",
+            "ko": "Korean",
+            "en": "English"
+        }
+        lang_name = lang_names.get(target_language, "Japanese")
+
         prompt = f"""
-        Listen to the audio and transcribe the original Japanese text.
+        Listen to the audio and transcribe the original {lang_name} text.
         {speaker_hint}
-        
+
         Output a JSON array of objects with these fields:
         - start: timestamp in SRT format (HH:MM:SS,mmm) e.g., "00:00:05,230"
         - end: timestamp in SRT format (HH:MM:SS,mmm) e.g., "00:00:08,450"
         - speaker: string (e.g., "speaker1")
-        - text_ja: transcription
-        
+        - text_{target_language}: transcription
+
         IMPORTANT: Use standard SRT timestamp format with HOURS:MINUTES:SECONDS,MILLISECONDS
         Example: "00:01:23,456" means 1 minute, 23 seconds, and 456 milliseconds
-        
+
         Output ONLY the raw JSON array.
         """
-        
+
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=[myfile, prompt]
