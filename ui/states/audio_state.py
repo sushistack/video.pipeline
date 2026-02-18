@@ -702,6 +702,11 @@ class ScenarioState(rx.State):
     # Detected speakers from SRT
     speakers: list[str] = []  # ["speaker1", "speaker2", ...]
 
+    # Available SRT languages for current project
+    has_ja_srt: bool = False
+    has_en_srt: bool = False
+    has_ko_srt: bool = False
+
     # Available voice files by language and gender
     # Structure: {lang: {gender: [filenames]}}
     available_voices: dict[str, dict[str, list[str]]] = {}
@@ -785,18 +790,19 @@ class ScenarioState(rx.State):
         if not self.selected_project:
             return
 
+        project_path = PARENT_DIR / "workspace" / self.selected_project / "subtitles"
+        
+        # Check which SRT files exist
+        self.has_ja_srt = (project_path / "ja.srt").exists()
+        self.has_en_srt = (project_path / "en.srt").exists()
+        self.has_ko_srt = (project_path / "ko.srt").exists()
+
         # Try to find any available SRT file (ko > en > ja priority)
-        srt_path = (
-            PARENT_DIR / "workspace" / self.selected_project / "subtitles" / "ko.srt"
-        )
+        srt_path = project_path / "ko.srt"
         if not srt_path.exists():
-            srt_path = (
-                PARENT_DIR / "workspace" / self.selected_project / "subtitles" / "en.srt"
-            )
+            srt_path = project_path / "en.srt"
         if not srt_path.exists():
-            srt_path = (
-                PARENT_DIR / "workspace" / self.selected_project / "subtitles" / "ja.srt"
-            )
+            srt_path = project_path / "ja.srt"
         
         if not srt_path.exists():
             return

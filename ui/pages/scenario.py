@@ -272,33 +272,55 @@ def page() -> rx.Component:
 
         rx.tabs.root(
             rx.tabs.list(
-                rx.tabs.trigger("🇰🇷 Korean", value="ko"),
-                rx.tabs.trigger("🇺🇸 English", value="en"),
-                rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
+                rx.cond(
+                    ScenarioState.has_ko_srt,
+                    rx.tabs.trigger("🇰🇷 Korean", value="ko"),
+                ),
+                rx.cond(
+                    ScenarioState.has_en_srt,
+                    rx.tabs.trigger("🇺🇸 English", value="en"),
+                ),
+                rx.cond(
+                    ScenarioState.has_ja_srt,
+                    rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
+                ),
             ),
 
             # Korean Tab
-            rx.tabs.content(
-                language_speaker_config("ko", "Korean", "🇰🇷"),
-                value="ko",
-                padding_top="4",
+            rx.cond(
+                ScenarioState.has_ko_srt,
+                rx.tabs.content(
+                    language_speaker_config("ko", "Korean", "🇰🇷"),
+                    value="ko",
+                    padding_top="4",
+                ),
             ),
 
             # English Tab
-            rx.tabs.content(
-                language_speaker_config("en", "English", "🇺🇸"),
-                value="en",
-                padding_top="4",
+            rx.cond(
+                ScenarioState.has_en_srt,
+                rx.tabs.content(
+                    language_speaker_config("en", "English", "🇺🇸"),
+                    value="en",
+                    padding_top="4",
+                ),
             ),
 
             # Japanese Tab
-            rx.tabs.content(
-                language_speaker_config("ja", "Japanese", "🇯🇵"),
-                value="ja",
-                padding_top="4",
+            rx.cond(
+                ScenarioState.has_ja_srt,
+                rx.tabs.content(
+                    language_speaker_config("ja", "Japanese", "🇯🇵"),
+                    value="ja",
+                    padding_top="4",
+                ),
             ),
 
-            default_value="ko",
+            default_value=rx.cond(ScenarioState.has_ko_srt, "ko",
+                rx.cond(ScenarioState.has_en_srt, "en",
+                    rx.cond(ScenarioState.has_ja_srt, "ja", "")
+                )
+            ),
             width="100%",
         ),
 
