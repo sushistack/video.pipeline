@@ -55,9 +55,9 @@ class CaptionGenerator:
         if self.config_file.exists():
             with open(self.config_file, "r") as f:
                 self.config = yaml.safe_load(f)
-                config_model = self.config.get("gemini", {}).get("model_id", "gemini-2.5-flash")
+                config_model = self.config.get("gemini", {}).get("model_id", "gemini-3-flash-preview")
         else:
-            config_model = "gemini-2.5-flash"
+            config_model = "gemini-3-flash-preview"
             
         # Priority: Argument > Config > Default
         self.model_name = model_name if model_name else config_model

@@ -19,8 +19,8 @@ The input is a JSON list of caption items with `start`, `end`, `speaker`, and `t
      - Use concise phrasing appropriate for subtitles.
 
 3. **Structure**:
-   - Do not change `start`, `end`, or `speaker`.
-   - Add `text_en` and `text_ko` fields to each object.
+    - Do not change `start`, `end`, or `speaker`.
+    - Add `text_en` and `text_ko` fields to each object.
 
 ## Output Format
 Return ONLY the raw JSON list of objects with the new translation fields added. Do not include markdown formatting.

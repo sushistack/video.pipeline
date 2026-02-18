@@ -14,7 +14,7 @@ from components.file_selector import project_selector
 
 def voice_card(speaker_name: str, lang: str, flag: str) -> rx.Component:
     """Voice card with corrected padding structure (Direct VStack styling)"""
-    
+
     # Using rx.vstack directly as the container to ensure padding works correctly
     return rx.vstack(
         # Row 1: Speaker Badge (Top Left)
@@ -29,20 +29,20 @@ def voice_card(speaker_name: str, lang: str, flag: str) -> rx.Component:
             # width="100%" removed to prevent overflow with margin
             margin="20px 20px 0 20px",
         ),
-        
-        # Row 2: Gender Selection (Buttons Only)
+
+        # Row 2: Gender/Preset Selection (Buttons)
         rx.hstack(
             rx.button(
                 "♀️ Female",
                 size="1",
                 variant=rx.cond(
                     ScenarioState.selected_voices[lang][speaker_name]["gender"] == "female",
-                    "solid", 
+                    "solid",
                     "soft"
                 ),
                 color_scheme=rx.cond(
                     ScenarioState.selected_voices[lang][speaker_name]["gender"] == "female",
-                    "pink", 
+                    "pink",
                     "gray"
                 ),
                 on_click=lambda: ScenarioState.set_speaker_gender(lang, speaker_name, "female"),
@@ -51,19 +51,54 @@ def voice_card(speaker_name: str, lang: str, flag: str) -> rx.Component:
                 margin="0 0 0 20px"
             ),
             rx.button(
-                "♂️ Male", 
+                "♂️ Male",
                 size="1",
                 variant=rx.cond(
                     ScenarioState.selected_voices[lang][speaker_name]["gender"] == "male",
-                    "solid", 
+                    "solid",
                     "soft"
                 ),
                 color_scheme=rx.cond(
                     ScenarioState.selected_voices[lang][speaker_name]["gender"] == "male",
-                    "blue", 
+                    "blue",
                     "gray"
                 ),
                 on_click=lambda: ScenarioState.set_speaker_gender(lang, speaker_name, "male"),
+                radius="full",
+                cursor="pointer",
+            ),
+            rx.text("|", color="var(--gray-7)", size="1"),
+            rx.button(
+                "🤖 Qwen♀",
+                size="1",
+                variant=rx.cond(
+                    ScenarioState.selected_voices[lang][speaker_name]["gender"] == "preset_female",
+                    "solid",
+                    "soft"
+                ),
+                color_scheme=rx.cond(
+                    ScenarioState.selected_voices[lang][speaker_name]["gender"] == "preset_female",
+                    "purple",
+                    "gray"
+                ),
+                on_click=lambda: ScenarioState.set_speaker_gender(lang, speaker_name, "preset_female"),
+                radius="full",
+                cursor="pointer",
+            ),
+            rx.button(
+                "🤖 Qwen♂",
+                size="1",
+                variant=rx.cond(
+                    ScenarioState.selected_voices[lang][speaker_name]["gender"] == "preset_male",
+                    "solid",
+                    "soft"
+                ),
+                color_scheme=rx.cond(
+                    ScenarioState.selected_voices[lang][speaker_name]["gender"] == "preset_male",
+                    "purple",
+                    "gray"
+                ),
+                on_click=lambda: ScenarioState.set_speaker_gender(lang, speaker_name, "preset_male"),
                 radius="full",
                 cursor="pointer",
             ),
@@ -86,36 +121,61 @@ def voice_card(speaker_name: str, lang: str, flag: str) -> rx.Component:
                 value=ScenarioState.selected_voices[lang][speaker_name]["voice"],
                 on_change=lambda val: ScenarioState.set_speaker_voice(lang, speaker_name, val),
                 size="3",
-                flex="1", 
+                flex="1",
                 radius="large",
                 variant="soft"
             ),
 
-            # Player Info (Right)
+            # Player Info (Right) - Only for non-preset voices
             rx.cond(
-                ScenarioState.selected_voices[lang][speaker_name]["voice"] != "",
-                rx.box(
-                    rx.audio(
-                        src="/audios/" + lang + "/" + ScenarioState.selected_voices[lang][speaker_name]["gender"] + "/" + ScenarioState.selected_voices[lang][speaker_name]["voice"],
+                # Check if it's a preset (no audio preview needed)
+                (ScenarioState.selected_voices[lang][speaker_name]["gender"] == "preset_female") |
+                (ScenarioState.selected_voices[lang][speaker_name]["gender"] == "preset_male"),
+                # Preset selected - show info badge
+                rx.cond(
+                    ScenarioState.selected_voices[lang][speaker_name]["voice"] != "",
+                    rx.center(
+                        rx.badge("Qwen3-TTS Preset", color_scheme="purple", variant="soft"),
+                        flex="1",
                         width="100%",
                         height="40px",
-                        controls=True,
                     ),
-                    flex="1",
-                    width="100%",
+                    rx.center(
+                        rx.text("Select preset speaker", size="1", color="var(--gray-9)"),
+                        flex="1",
+                        width="100%",
+                        height="40px",
+                        background="var(--gray-4)",
+                        border_radius="full",
+                        opacity="0.3",
+                    ),
                 ),
-                # Empty State
-                rx.center(
-                    rx.text("Select voice to preview", size="1", color="var(--gray-9)"),
-                    flex="1",
-                    width="100%",
-                    height="40px",
-                    background="var(--gray-4)",
-                    border_radius="full",
-                    opacity="0.3",
+                # Non-preset - show audio preview
+                rx.cond(
+                    ScenarioState.selected_voices[lang][speaker_name]["voice"] != "",
+                    rx.box(
+                        rx.audio(
+                            src="/audios/" + lang + "/" + ScenarioState.selected_voices[lang][speaker_name]["gender"] + "/" + ScenarioState.selected_voices[lang][speaker_name]["voice"],
+                            width="100%",
+                            height="40px",
+                            controls=True,
+                        ),
+                        flex="1",
+                        width="100%",
+                    ),
+                    # Empty State
+                    rx.center(
+                        rx.text("Select voice to preview", size="1", color="var(--gray-9)"),
+                        flex="1",
+                        width="100%",
+                        height="40px",
+                        background="var(--gray-4)",
+                        border_radius="full",
+                        opacity="0.3",
+                    ),
                 ),
             ),
-            
+
             align="center",
             spacing="4",
             margin="5px 20px 20px 20px"

@@ -19,8 +19,8 @@ The input is a JSON list of caption items, each with `start`, `end`, `speaker`, 
    - **Fix Grammar**: Correct minor oral speech errors.
 
 3. **Structure**:
-   - Return the same JSON list structure.
-   - Do not change timestamps.
+    - Return the same JSON list structure.
+    - Do not change timestamps.
 
 ## Output Format
 Return ONLY the raw JSON list of refined objects. Do not include markdown formatting.

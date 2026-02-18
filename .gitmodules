@@ -1,3 +1,6 @@
 [submodule "external/GPT-SoVITS"]
 	path = external/GPT-SoVITS
 	url = git@github.com:sushistack/GPT-SoVITS.git
+[submodule "external/Qwen3-TTS"]
+	path = external/Qwen3-TTS
+	url = https://github.com/QwenLM/Qwen3-TTS.git

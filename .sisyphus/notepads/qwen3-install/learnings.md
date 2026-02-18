@@ -1,0 +1,1 @@
+Successfully installed Qwen3-TTS from source using 'pip install -e external/Qwen3-TTS'. This resolved the version mismatch for 'transformers==4.57.3'. The real inference test passed even with 'sox' binary missing, as it likely used 'soundfile' for audio output.

@@ -33,7 +33,7 @@ class ExtractState(rx.State):
     
     # Parameters
     model_options: list[str] = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-3-flash-preview"]
-    selected_model: str = "gemini-2.5-flash"
+    selected_model: str = "gemini-3-flash-preview"
     speaker_options: list[str] = ["1", "2", "3", "4", "5+"]
     selected_speakers: str = "2"
     
