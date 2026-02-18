@@ -106,11 +106,11 @@ def subtitle_row(row: dict) -> rx.Component:
                     }
                 ),
                 
-                # Language Text Areas - Show only if data exists
+                # Language Text Areas - Show based on checkbox state
                 rx.grid(
-                    # Japanese (show only if text_ja exists)
+                    # Japanese (show if checkbox enabled)
                     rx.cond(
-                        row["text_ja"] != "",
+                        ReviewState.show_ja,
                         rx.vstack(
                             rx.text("🇯🇵 Japanese", size="2", weight="bold"),
                                 rx.text_area(
@@ -124,7 +124,7 @@ def subtitle_row(row: dict) -> rx.Component:
                             align="start",
                             width="100%",
                         ),
-                        rx.box(),  # Empty placeholder when no data
+                        rx.box(),  # Empty placeholder when hidden
                     ),
 
                     # Korean (always shown)
@@ -142,9 +142,9 @@ def subtitle_row(row: dict) -> rx.Component:
                         width="100%",
                     ),
 
-                    # English (show only if text_en exists)
+                    # English (show if checkbox enabled)
                     rx.cond(
-                        row["text_en"] != "",
+                        ReviewState.show_en,
                         rx.vstack(
                             rx.text("🇺🇸 English", size="2", weight="bold"),
                             rx.text_area(
@@ -158,7 +158,7 @@ def subtitle_row(row: dict) -> rx.Component:
                             align="start",
                             width="100%",
                         ),
-                        rx.box(),  # Empty placeholder when no data
+                        rx.box(),  # Empty placeholder when hidden
                     ),
 
                     columns="3",

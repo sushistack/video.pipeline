@@ -29,6 +29,13 @@ def page() -> rx.Component:
             on_reload_callback=ReviewState.load_projects,
         ),
 
+        # Language Checkboxes
+        rx.hstack(
+            rx.checkbox("🇯🇵 Japanese", checked=ReviewState.show_ja, on_change=ReviewState.set_show_ja),
+            rx.checkbox("🇺🇸 English", checked=ReviewState.show_en, on_change=ReviewState.set_show_en),
+            spacing="4",
+        ),
+
         rx.divider(),
         
         # Subtitle Rows - ALL AT ONCE (No Pagination)
