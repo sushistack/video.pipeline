@@ -20,7 +20,7 @@ def prompt_card(prompt_data: dict, index: int) -> rx.Component:
         """Copy prompt with title and aspect ratio metadata"""
         title = ImagePrompterState.content_title
         prompt_text = prompt_data.get(prompt_field, "")
-        full_text = f"[{title}]\nAspect Ratio: 16:9\n\n{prompt_text}"
+        full_text = f"{prompt_text}\n\n[{title}]\nAspect Ratio: 16:9"
         return rx.set_clipboard(full_text)
 
     return rx.accordion.item(
