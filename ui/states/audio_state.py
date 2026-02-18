@@ -84,6 +84,11 @@ class AudioState(rx.State):
     gen_en: bool = False
     gen_ko: bool = True
     gen_ja: bool = False
+    
+    # Available scenario XML files for current project
+    has_ja_scenario: bool = False
+    has_en_scenario: bool = False
+    has_ko_scenario: bool = False
 
     # Speed factor
     speed_factor: float = 1.0
@@ -1101,9 +1106,14 @@ class SubtitleState(rx.State):
         audios_root = proj_root / "audios"
         subtitles_root = proj_root / "subtitles"
 
+        # Check scenario XML files
+        self.has_ja_scenario = (proj_root / "scenario_ja.xml").exists()
+        self.has_en_scenario = (proj_root / "scenario_en.xml").exists()
+        self.has_ko_scenario = (proj_root / "scenario_ko.xml").exists()
+
         new_list = []
 
-        for lang, flag_emoji in [("ja", "🇯🇵"), ("en", "🇺🇸"), ("ko", "🇰🇷")]:
+        for lang, flag_emoji in [("ko", "🇰🇷"), ("en", "🇺🇸"), ("ja", "🇯🇵")]:
             lang_audio_dir = audios_root / lang
             audio_files = []
             if lang_audio_dir.exists():

@@ -151,19 +151,25 @@ def page() -> rx.Component:
                         rx.text("Target Languages", weight="bold"),
                         rx.hstack(
                             rx.button(
-                                "🇯🇵 Japanese",
-                                variant=rx.cond(AudioState.gen_ja, "solid", "outline"),
-                                on_click=AudioState.set_gen_ja(~AudioState.gen_ja),
+                                "🇰🇷 Korean",
+                                variant=rx.cond(AudioState.gen_ko, "solid", "outline"),
+                                on_click=AudioState.set_gen_ko(~AudioState.gen_ko),
+                                disabled=~AudioState.has_ko_scenario,
+                                opacity=rx.cond(AudioState.has_ko_scenario, 1, 0.5),
                             ),
                             rx.button(
                                 "🇺🇸 English",
                                 variant=rx.cond(AudioState.gen_en, "solid", "outline"),
                                 on_click=AudioState.set_gen_en(~AudioState.gen_en),
+                                disabled=~AudioState.has_en_scenario,
+                                opacity=rx.cond(AudioState.has_en_scenario, 1, 0.5),
                             ),
                             rx.button(
-                                "🇰🇷 Korean",
-                                variant=rx.cond(AudioState.gen_ko, "solid", "outline"),
-                                on_click=AudioState.set_gen_ko(~AudioState.gen_ko),
+                                "🇯🇵 Japanese",
+                                variant=rx.cond(AudioState.gen_ja, "solid", "outline"),
+                                on_click=AudioState.set_gen_ja(~AudioState.gen_ja),
+                                disabled=~AudioState.has_ja_scenario,
+                                opacity=rx.cond(AudioState.has_ja_scenario, 1, 0.5),
                             ),
                             spacing="4",
                         ),
@@ -192,294 +198,316 @@ def page() -> rx.Component:
                     ),
                     rx.tabs.root(
                         rx.tabs.list(
-                            rx.tabs.trigger("🇰🇷 Korean", value="ko"),
-                            rx.tabs.trigger("🇺🇸 English", value="en"),
-                            rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
+                            rx.cond(
+                                AudioState.has_ko_scenario,
+                                rx.tabs.trigger("🇰🇷 Korean", value="ko"),
+                            ),
+                            rx.cond(
+                                AudioState.has_en_scenario,
+                                rx.tabs.trigger("🇺🇸 English", value="en"),
+                            ),
+                            rx.cond(
+                                AudioState.has_ja_scenario,
+                                rx.tabs.trigger("🇯🇵 Japanese", value="ja"),
+                            ),
                         ),
                         # Korean Tab
-                        rx.tabs.content(
-                            rx.scroll_area(
-                                rx.vstack(
-                                    rx.cond(
-                                        AudioState.generated_audios["ko"],
-                                        rx.foreach(
+                        rx.cond(
+                            AudioState.has_ko_scenario,
+                            rx.tabs.content(
+                                rx.scroll_area(
+                                    rx.vstack(
+                                        rx.cond(
                                             AudioState.generated_audios["ko"],
-                                            lambda file: rx.card(
-                                                rx.vstack(
-                                                    rx.hstack(
-                                                        rx.text(
-                                                            file["name"],
-                                                            size="1",
-                                                            weight="bold",
-                                                        ),
-                                                        rx.cond(
-                                                            file["confirm_delete"],
-                                                            rx.hstack(
+                                            rx.foreach(
+                                                AudioState.generated_audios["ko"],
+                                                lambda file: rx.card(
+                                                    rx.vstack(
+                                                        rx.hstack(
+                                                            rx.text(
+                                                                file["name"],
+                                                                size="1",
+                                                                weight="bold",
+                                                            ),
+                                                            rx.cond(
+                                                                file["confirm_delete"],
+                                                                rx.hstack(
+                                                                    rx.icon_button(
+                                                                        rx.icon("check"),
+                                                                        on_click=AudioState.delete_audio(
+                                                                            file["name"],
+                                                                            "ko",
+                                                                        ),
+                                                                        color_scheme="red",
+                                                                        variant="soft",
+                                                                        size="1",
+                                                                    ),
+                                                                    rx.icon_button(
+                                                                        rx.icon("undo-2"),
+                                                                        on_click=AudioState.toggle_delete_confirm(
+                                                                            file["name"],
+                                                                            "ko",
+                                                                        ),
+                                                                        variant="soft",
+                                                                        size="1",
+                                                                    ),
+                                                                    spacing="1",
+                                                                ),
                                                                 rx.icon_button(
-                                                                    rx.icon("check"),
-                                                                    on_click=AudioState.delete_audio(
-                                                                        file["name"],
-                                                                        "ko",
+                                                                    rx.icon("trash-2"),
+                                                                    on_click=AudioState.toggle_delete_confirm(
+                                                                        file["name"], "ko"
                                                                     ),
                                                                     color_scheme="red",
-                                                                    variant="soft",
+                                                                    variant="ghost",
                                                                     size="1",
                                                                 ),
-                                                                rx.icon_button(
-                                                                    rx.icon("undo-2"),
-                                                                    on_click=AudioState.toggle_delete_confirm(
-                                                                        file["name"],
-                                                                        "ko",
-                                                                    ),
-                                                                    variant="soft",
-                                                                    size="1",
-                                                                ),
-                                                                spacing="1",
                                                             ),
-                                                            rx.icon_button(
-                                                                rx.icon("trash-2"),
-                                                                on_click=AudioState.toggle_delete_confirm(
-                                                                    file["name"], "ko"
-                                                                ),
-                                                                color_scheme="red",
-                                                                variant="ghost",
-                                                                size="1",
-                                                            ),
+                                                            align="center",
+                                                            width="100%",
+                                                            justify="between",
                                                         ),
-                                                        align="center",
-                                                        width="100%",
-                                                        justify="between",
+                                                        rx.audio(
+                                                            src=file["url"],
+                                                            controls=True,
+                                                            width="100%",
+                                                        ),
+                                                        spacing="2",
                                                     ),
-                                                    rx.audio(
-                                                        src=file["url"],
-                                                        controls=True,
-                                                        width="100%",
-                                                    ),
-                                                    spacing="2",
+                                                    size="1",
+                                                    width="347px",
                                                 ),
-                                                size="1",
-                                                width="347px",
+                                            ),
+                                            rx.text(
+                                                "No audio files generated yet.",
+                                                color="gray",
+                                                font_style="italic",
                                             ),
                                         ),
-                                        rx.text(
-                                            "No audio files generated yet.",
-                                            color="gray",
-                                            font_style="italic",
+                                        rx.cond(
+                                            AudioState.has_more["ko"],
+                                            rx.button(
+                                                "Load More",
+                                                on_click=lambda: AudioState.load_more("ko"),
+                                                size="2",
+                                                variant="ghost",
+                                                width="100%",
+                                            ),
                                         ),
+                                        spacing="2",
                                     ),
-                                    rx.cond(
-                                        AudioState.has_more["ko"],
-                                        rx.button(
-                                            "Load More",
-                                            on_click=lambda: AudioState.load_more("ko"),
-                                            size="2",
-                                            variant="ghost",
-                                            width="100%",
-                                        ),
-                                    ),
-                                    spacing="2",
+                                    type="always",
+                                    scrollbars="vertical",
+                                    style={
+                                        "height": "400px",
+                                        "padding": "20px",
+                                        "backgroundColor": "var(--gray-2)",
+                                        "borderRadius": "12px",
+                                        "border": "1px solid var(--gray-6)",
+                                    },
                                 ),
-                                type="always",
-                                scrollbars="vertical",
-                                style={
-                                    "height": "400px",
-                                    "padding": "20px",
-                                    "backgroundColor": "var(--gray-2)",
-                                    "borderRadius": "12px",
-                                    "border": "1px solid var(--gray-6)",
-                                },
+                                value="ko",
                             ),
-                            value="ko",
                         ),
                         # English Tab
-                        rx.tabs.content(
-                            rx.scroll_area(
-                                rx.vstack(
-                                    rx.cond(
-                                        AudioState.generated_audios["en"],
-                                        rx.foreach(
+                        rx.cond(
+                            AudioState.has_en_scenario,
+                            rx.tabs.content(
+                                rx.scroll_area(
+                                    rx.vstack(
+                                        rx.cond(
                                             AudioState.generated_audios["en"],
-                                            lambda file: rx.card(
-                                                rx.vstack(
-                                                    rx.hstack(
-                                                        rx.text(
-                                                            file["name"],
-                                                            size="1",
-                                                            weight="bold",
-                                                        ),
-                                                        rx.cond(
-                                                            file["confirm_delete"],
-                                                            rx.hstack(
+                                            rx.foreach(
+                                                AudioState.generated_audios["en"],
+                                                lambda file: rx.card(
+                                                    rx.vstack(
+                                                        rx.hstack(
+                                                            rx.text(
+                                                                file["name"],
+                                                                size="1",
+                                                                weight="bold",
+                                                            ),
+                                                            rx.cond(
+                                                                file["confirm_delete"],
+                                                                rx.hstack(
+                                                                    rx.icon_button(
+                                                                        rx.icon("check"),
+                                                                        on_click=AudioState.delete_audio(
+                                                                            file["name"],
+                                                                            "en",
+                                                                        ),
+                                                                        color_scheme="red",
+                                                                        variant="soft",
+                                                                        size="1",
+                                                                    ),
+                                                                    rx.icon_button(
+                                                                        rx.icon("undo-2"),
+                                                                        on_click=AudioState.toggle_delete_confirm(
+                                                                            file["name"],
+                                                                            "en",
+                                                                        ),
+                                                                        variant="soft",
+                                                                        size="1",
+                                                                    ),
+                                                                    spacing="1",
+                                                                ),
                                                                 rx.icon_button(
-                                                                    rx.icon("check"),
-                                                                    on_click=AudioState.delete_audio(
-                                                                        file["name"],
-                                                                        "en",
+                                                                    rx.icon("trash-2"),
+                                                                    on_click=AudioState.toggle_delete_confirm(
+                                                                        file["name"], "en"
                                                                     ),
                                                                     color_scheme="red",
-                                                                    variant="soft",
+                                                                    variant="ghost",
                                                                     size="1",
                                                                 ),
-                                                                rx.icon_button(
-                                                                    rx.icon("undo-2"),
-                                                                    on_click=AudioState.toggle_delete_confirm(
-                                                                        file["name"],
-                                                                        "en",
-                                                                    ),
-                                                                    variant="soft",
-                                                                    size="1",
-                                                                ),
-                                                                spacing="1",
                                                             ),
-                                                            rx.icon_button(
-                                                                rx.icon("trash-2"),
-                                                                on_click=AudioState.toggle_delete_confirm(
-                                                                    file["name"], "en"
-                                                                ),
-                                                                color_scheme="red",
-                                                                variant="ghost",
-                                                                size="1",
-                                                            ),
+                                                            align="center",
+                                                            width="100%",
+                                                            justify="between",
                                                         ),
-                                                        align="center",
-                                                        width="100%",
-                                                        justify="between",
+                                                        rx.audio(
+                                                            src=file["url"],
+                                                            controls=True,
+                                                            width="100%",
+                                                        ),
+                                                        spacing="2",
                                                     ),
-                                                    rx.audio(
-                                                        src=file["url"],
-                                                        controls=True,
-                                                        width="100%",
-                                                    ),
-                                                    spacing="2",
+                                                    size="1",
                                                 ),
-                                                size="1",
+                                            ),
+                                            rx.text(
+                                                "No audio files generated yet.",
+                                                color="gray",
+                                                font_style="italic",
                                             ),
                                         ),
-                                        rx.text(
-                                            "No audio files generated yet.",
-                                            color="gray",
-                                            font_style="italic",
+                                        rx.cond(
+                                            AudioState.has_more["en"],
+                                            rx.button(
+                                                "Load More",
+                                                on_click=lambda: AudioState.load_more("en"),
+                                                size="2",
+                                                variant="ghost",
+                                                width="100%",
+                                            ),
                                         ),
+                                        spacing="2",
                                     ),
-                                    rx.cond(
-                                        AudioState.has_more["en"],
-                                        rx.button(
-                                            "Load More",
-                                            on_click=lambda: AudioState.load_more("en"),
-                                            size="2",
-                                            variant="ghost",
-                                            width="100%",
-                                        ),
-                                    ),
-                                    spacing="2",
+                                    type="always",
+                                    scrollbars="vertical",
+                                    style={
+                                        "height": "400px",
+                                        "padding": "20px",
+                                        "backgroundColor": "var(--gray-2)",
+                                        "borderRadius": "12px",
+                                        "border": "1px solid var(--gray-6)",
+                                    },
                                 ),
-                                type="always",
-                                scrollbars="vertical",
-                                style={
-                                    "height": "400px",
-                                    "padding": "20px",
-                                    "backgroundColor": "var(--gray-2)",
-                                    "borderRadius": "12px",
-                                    "border": "1px solid var(--gray-6)",
-                                },
+                                value="en",
                             ),
-                            value="en",
                         ),
                         # Japanese Tab
-                        rx.tabs.content(
-                            rx.scroll_area(
-                                rx.vstack(
-                                    rx.cond(
-                                        AudioState.generated_audios["ja"],
-                                        rx.foreach(
+                        rx.cond(
+                            AudioState.has_ja_scenario,
+                            rx.tabs.content(
+                                rx.scroll_area(
+                                    rx.vstack(
+                                        rx.cond(
                                             AudioState.generated_audios["ja"],
-                                            lambda file: rx.card(
-                                                rx.vstack(
-                                                    rx.hstack(
-                                                        rx.text(
-                                                            file["name"],
-                                                            size="1",
-                                                            weight="bold",
-                                                        ),
-                                                        rx.cond(
-                                                            file["confirm_delete"],
-                                                            rx.hstack(
+                                            rx.foreach(
+                                                AudioState.generated_audios["ja"],
+                                                lambda file: rx.card(
+                                                    rx.vstack(
+                                                        rx.hstack(
+                                                            rx.text(
+                                                                file["name"],
+                                                                size="1",
+                                                                weight="bold",
+                                                            ),
+                                                            rx.cond(
+                                                                file["confirm_delete"],
+                                                                rx.hstack(
+                                                                    rx.icon_button(
+                                                                        rx.icon("check"),
+                                                                        on_click=AudioState.delete_audio(
+                                                                            file["name"],
+                                                                            "ja",
+                                                                        ),
+                                                                        color_scheme="red",
+                                                                        variant="soft",
+                                                                        size="1",
+                                                                    ),
+                                                                    rx.icon_button(
+                                                                        rx.icon("undo-2"),
+                                                                        on_click=AudioState.toggle_delete_confirm(
+                                                                            file["name"],
+                                                                            "ja",
+                                                                        ),
+                                                                        variant="soft",
+                                                                        size="1",
+                                                                    ),
+                                                                    spacing="1",
+                                                                ),
                                                                 rx.icon_button(
-                                                                    rx.icon("check"),
-                                                                    on_click=AudioState.delete_audio(
-                                                                        file["name"],
-                                                                        "ja",
+                                                                    rx.icon("trash-2"),
+                                                                    on_click=AudioState.toggle_delete_confirm(
+                                                                        file["name"], "ja"
                                                                     ),
                                                                     color_scheme="red",
-                                                                    variant="soft",
+                                                                    variant="ghost",
                                                                     size="1",
                                                                 ),
-                                                                rx.icon_button(
-                                                                    rx.icon("undo-2"),
-                                                                    on_click=AudioState.toggle_delete_confirm(
-                                                                        file["name"],
-                                                                        "ja",
-                                                                    ),
-                                                                    variant="soft",
-                                                                    size="1",
-                                                                ),
-                                                                spacing="1",
                                                             ),
-                                                            rx.icon_button(
-                                                                rx.icon("trash-2"),
-                                                                on_click=AudioState.toggle_delete_confirm(
-                                                                    file["name"], "ja"
-                                                                ),
-                                                                color_scheme="red",
-                                                                variant="ghost",
-                                                                size="1",
-                                                            ),
+                                                            align="center",
+                                                            width="100%",
+                                                            justify="between",
                                                         ),
-                                                        align="center",
-                                                        width="100%",
-                                                        justify="between",
+                                                        rx.audio(
+                                                            src=file["url"],
+                                                            controls=True,
+                                                            width="100%",
+                                                        ),
+                                                        spacing="2",
                                                     ),
-                                                    rx.audio(
-                                                        src=file["url"],
-                                                        controls=True,
-                                                        width="100%",
-                                                    ),
-                                                    spacing="2",
+                                                    size="1",
                                                 ),
-                                                size="1",
+                                            ),
+                                            rx.text(
+                                                "No audio files generated yet.",
+                                                color="gray",
+                                                font_style="italic",
                                             ),
                                         ),
-                                        rx.text(
-                                            "No audio files generated yet.",
-                                            color="gray",
-                                            font_style="italic",
+                                        rx.cond(
+                                            AudioState.has_more["ja"],
+                                            rx.button(
+                                                "Load More",
+                                                on_click=lambda: AudioState.load_more("ja"),
+                                                size="2",
+                                                variant="ghost",
+                                                width="100%",
+                                            ),
                                         ),
+                                        spacing="2",
                                     ),
-                                    rx.cond(
-                                        AudioState.has_more["ja"],
-                                        rx.button(
-                                            "Load More",
-                                            on_click=lambda: AudioState.load_more("ja"),
-                                            size="2",
-                                            variant="ghost",
-                                            width="100%",
-                                        ),
-                                    ),
-                                    spacing="2",
+                                    type="always",
+                                    scrollbars="vertical",
+                                    style={
+                                        "height": "400px",
+                                        "padding": "20px",
+                                        "backgroundColor": "var(--gray-2)",
+                                        "borderRadius": "12px",
+                                        "border": "1px solid var(--gray-6)",
+                                    },
                                 ),
-                                type="always",
-                                scrollbars="vertical",
-                                style={
-                                    "height": "400px",
-                                    "padding": "20px",
-                                    "backgroundColor": "var(--gray-2)",
-                                    "borderRadius": "12px",
-                                    "border": "1px solid var(--gray-6)",
-                                },
+                                value="ja",
                             ),
-                            value="ja",
                         ),
-                        default_value="ko",
+                        default_value=rx.cond(AudioState.has_ko_scenario, "ko",
+                            rx.cond(AudioState.has_en_scenario, "en",
+                                rx.cond(AudioState.has_ja_scenario, "ja", "")
+                            )
+                        ),
                         width="100%",
                     ),
                     width="100%",
