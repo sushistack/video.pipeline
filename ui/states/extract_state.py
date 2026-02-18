@@ -68,9 +68,6 @@ class ExtractState(rx.State):
             langs.append("en")
         if self.target_ko:
             langs.append("ko")
-        # Always include Japanese as base for transcription
-        if "ja" not in langs:
-            langs.insert(0, "ja")
         return langs
     
     # Explicit setters
