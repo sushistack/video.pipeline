@@ -50,8 +50,8 @@ class ImagePromptGenerator:
         log_callback: Callable[[str], None] | None = None
     ) -> dict:
         """
-        Generate 2 image prompts for a single section with different angles/focus.
-        Both prompts share the same scene/character but with different framing.
+        Generate 2 image prompts for a single section by identifying key visual elements from context.
+        Automatically extracts: character full body + what character is looking at/interacting with.
         """
         try:
             # Build prompt context
@@ -73,24 +73,54 @@ class ImagePromptGenerator:
                 total_sections=total_sections
             )
 
-            # Call Gemini to generate 2 image prompts with SHARED elements
+            # Call Gemini to generate 2 image prompts with CONTEXTUAL key points
             response = self.gemini_client.models.generate_content(
                 model=self.gemini_model,
                 contents=prompt_request + """
 
-**CRITICAL: Generate 2 image prompts for the SAME scene with different focus points.**
+**CRITICAL: Analyze the narration content and identify 2 KEY VISUAL POINTS:**
 
-**SHARED ELEMENTS (Must be identical in both prompts):**
-- Same character/subject (identical physical description, clothing, pose)
-- Same location and time
-- Same lighting conditions and color palette
-- Same mood and atmosphere
+1. **First, identify the PRIMARY VISUAL ELEMENTS from the narration:**
+   - What is the main character doing? (standing, holding, looking, running, etc.)
+   - What objects are important? (photos, weapons, tools, documents, etc.)
+   - Where is the character looking? (at an object, at another character, at the horizon, etc.)
+   - What is the character interacting with? (people, objects, environment)
 
-**DIFFERENT FOCUS:**
-- **Prompt 1 (Subject Focus)**: Character fills 60-70% of frame. Close-up or medium shot. Background is blurred or simplified. Emphasis on facial expression, details of clothing, body language.
-- **Prompt 2 (Environment Focus)**: Character fills 20-30% of frame. Wide or extreme wide shot. Background is detailed and sharp. Emphasis on location, atmosphere, scale, context. Character is still visible and recognizable but smaller in frame.
+2. **Generate 2 prompts based on these key points:**
 
-**VISUAL CONTINUITY:** Both prompts must look like photographs taken from the same scene, same moment, same lighting - just different camera distances. A viewer should recognize these as the same character in the same place at the same time.
+   **PROMPT 1 - ESTABLISHING SHOT (Full Context):**
+   - Show the CHARACTER in their FULL environment
+   - Character's full body visible (or significant portion)
+   - Show what they're doing/holding/looking at
+   - Establish spatial relationship between character and key objects
+   - Wide to medium shot that captures the complete scene
+   - Viewer understands: who, where, what they're doing
+
+   **PROMPT 2 - FOCUS SHOT (Key Detail):**
+   - Zoom in on the MOST IMPORTANT visual element from the narration
+   - Examples:
+     * If character is holding a photo → close-up of the photo (with character's hands/face partially visible)
+     * If character is looking at something → show what they see (POV shot or over-the-shoulder)
+     * If character is interacting with an object → close-up of that interaction (hands on object)
+     * If character's expression is crucial → close-up of face showing that emotion
+     * If there's a crucial background element → focus on that element with character in frame
+   - This shot emphasizes the narrative detail that drives the story forward
+   - Medium to close-up shot
+
+3. **SHARED ELEMENTS (Must match in both prompts):**
+   - Same character appearance (clothing, physical features, pose base)
+   - Same location, time, lighting
+   - Same key objects (if visible in both)
+   - Same mood and atmosphere
+
+**EXAMPLE ANALYSIS:**
+If narration says: "The researcher held the photograph of SCP-096, studying its pale features."
+
+- **Key Visual Points**: Researcher + Photograph of 096
+- **Prompt 1 (Establishing)**: Researcher in lab, full body, holding photograph, lab environment visible
+- **Prompt 2 (Focus)**: Close-up of the photograph in researcher's hands, showing 096's pale face, researcher's fingers visible at edges
+
+**VISUAL CONTINUITY:** Both prompts must look like they're from the same scene, same moment - just different camera focus to tell different parts of the visual story.
 
 Return as JSON array with exactly 2 objects: [{"prompt": "...", ...}, {"prompt": "...", ...}]""",
                 config=types.GenerateContentConfig(
@@ -298,20 +328,44 @@ Return ONLY JSON with these fields. **ALL VALUES IN ENGLISH:**
 - **Climax**: Character intense emotion + dramatic extreme background
 - **Resolution**: Character resolved state + softer background, visual closure
 
-## Two Prompt Variations - SAME SCENE, DIFFERENT FRAMING
+## Two Prompt Variations - CONTEXTUAL STORYTELLING
 
-You will generate 2 prompts for this section. They must share core elements:
+You will generate 2 prompts that work together to tell the complete visual story.
 
-**SHARED (Identical in both):**
-- Character name, physical description, clothing, pose
-- Location, time of day, weather conditions
-- Lighting direction, color palette, mood
+**STEP 1: Analyze the narration to find KEY VISUAL POINTS:**
+- What is the character DOING? (action, interaction, gaze direction)
+- What OBJECTS are narratively important? (photos, documents, weapons, tools)
+- What RELATIONSHIP matters? (character-to-object, character-to-character, character-to-environment)
 
-**DIFFERENT:**
-- **Prompt 1 (Subject Focus)**: "close-up shot, medium shot, character fills 60-70% of frame, shallow depth of field, background blurred, focus on facial expression and details"
-- **Prompt 2 (Environment Focus)**: "wide shot, extreme wide shot, character fills 20-30% of frame, deep focus, background sharp and detailed, emphasis on location scale and atmosphere"
+**STEP 2: Generate two complementary shots:**
 
-Think of it as: Same photographer, same scene, same moment - just took two photos from different distances.
+**PROMPT 1 - ESTABLISHING SHOT (Full Scene):**
+- Character + environment + key objects together
+- Shows spatial relationships and complete context
+- Wide to medium shot
+- Answers: Who is here? Where are they? What are they doing?
+
+**PROMPT 2 - DETAIL/FOCUS SHOT (Key Story Element):**
+- Focus on the most narratively important detail:
+  * Object character is holding/using → close-up of that object
+  * Character's gaze target → what they're looking at (POV or over-shoulder)
+  * Critical facial expression → close-up showing emotion
+  * Important interaction → hands + object interaction
+  * Environmental storytelling element → focus on that background detail
+- Medium to close-up
+- Answers: What specific detail drives this moment of the story?
+
+**SHARED ELEMENTS (Must be consistent):**
+- Character appearance, clothing, base pose
+- Location, time, weather
+- Lighting direction, color palette
+- Mood, atmosphere
+
+**Think like a film director:**
+- Shot 1 (Establishing): "Here's the researcher in the lab, holding a photograph"
+- Shot 2 (Detail): "Here's what's in that photograph - and why it matters"
+
+Both shots are from the same scene, same moment - but Shot 2 reveals the story detail that Shot 1 sets up.
 
 Generate the JSON now. Output ONLY JSON in ENGLISH. Focus on CHARACTER and BACKGROUND for visual storytelling.
 """
