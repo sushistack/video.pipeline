@@ -1077,6 +1077,11 @@ class SubtitleState(rx.State):
     lang_list: list[SubtitleLangData] = []
 
     is_generating: bool = False
+    
+    # Available scenario XML files for current project
+    has_ja_scenario: bool = False
+    has_en_scenario: bool = False
+    has_ko_scenario: bool = False
 
     def set_selected_project(self, value: str):
         self.selected_project = value
