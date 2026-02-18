@@ -86,7 +86,13 @@ class ImagePromptGenerator:
    - Where is the character looking? (at an object, at another character, at the horizon, etc.)
    - What is the character interacting with? (people, objects, environment)
 
-2. **Generate 2 prompts based on these key points:**
+2. **Extract 1-2 MOOD/ATMOSPHERE KEYWORDS from the narration context:**
+   - Analyze the emotional tone of the narration
+   - Identify the atmosphere (dread, tension, mystery, hope, isolation, despair, urgency, etc.)
+   - These mood keywords MUST be included in both prompts
+   - Examples: "cosmic dread", "clinical sterility", "primal isolation", "desperate urgency", "eerie silence"
+
+3. **Generate 2 prompts based on these key points:**
 
    **PROMPT 1 - ESTABLISHING SHOT (Full Context):**
    - Show the CHARACTER in their FULL environment
@@ -94,6 +100,7 @@ class ImagePromptGenerator:
    - Show what they're doing/holding/looking at
    - Establish spatial relationship between character and key objects
    - Wide to medium shot that captures the complete scene
+   - MUST INCLUDE: 1-2 mood keywords from step 2
    - Viewer understands: who, where, what they're doing
 
    **PROMPT 2 - FOCUS SHOT (Key Detail):**
@@ -104,23 +111,26 @@ class ImagePromptGenerator:
      * If character is interacting with an object → close-up of that interaction (hands on object)
      * If character's expression is crucial → close-up of face showing that emotion
      * If there's a crucial background element → focus on that element with character in frame
+   - MUST INCLUDE: Same 1-2 mood keywords from step 2
    - This shot emphasizes the narrative detail that drives the story forward
    - Medium to close-up shot
 
-3. **SHARED ELEMENTS (Must match in both prompts):**
+4. **SHARED ELEMENTS (Must match in both prompts):**
    - Same character appearance (clothing, physical features, pose base)
    - Same location, time, lighting
    - Same key objects (if visible in both)
-   - Same mood and atmosphere
+   - **Same 1-2 mood keywords** (extracted from narration)
+   - Same atmosphere and color palette
 
 **EXAMPLE ANALYSIS:**
-If narration says: "The researcher held the photograph of SCP-096, studying its pale features."
+If narration says: "The researcher held the photograph of SCP-096, studying its pale features with growing dread."
 
 - **Key Visual Points**: Researcher + Photograph of 096
-- **Prompt 1 (Establishing)**: Researcher in lab, full body, holding photograph, lab environment visible
-- **Prompt 2 (Focus)**: Close-up of the photograph in researcher's hands, showing 096's pale face, researcher's fingers visible at edges
+- **Mood Keywords**: "growing dread", "clinical tension"
+- **Prompt 1 (Establishing)**: Researcher in sterile lab, full body, holding photograph, fluorescent lighting, clinical tension, growing dread
+- **Prompt 2 (Focus)**: Close-up of the photograph in researcher's hands, showing 096's pale face, researcher's fingers visible at edges, clinical tension, growing dread
 
-**VISUAL CONTINUITY:** Both prompts must look like they're from the same scene, same moment - just different camera focus to tell different parts of the visual story.
+**VISUAL CONTINUITY:** Both prompts must look like they're from the same scene, same moment - just different camera focus to tell different parts of the visual story. Both MUST include the same 1-2 mood keywords.
 
 Return as JSON array with exactly 2 objects: [{"prompt": "...", ...}, {"prompt": "...", ...}]""",
                 config=types.GenerateContentConfig(
@@ -337,12 +347,18 @@ You will generate 2 prompts that work together to tell the complete visual story
 - What OBJECTS are narratively important? (photos, documents, weapons, tools)
 - What RELATIONSHIP matters? (character-to-object, character-to-character, character-to-environment)
 
-**STEP 2: Generate two complementary shots:**
+**STEP 2: Extract 1-2 MOOD/ATMOSPHERE KEYWORDS from the narration:**
+- Analyze the emotional tone: dread, tension, mystery, hope, isolation, despair, urgency, etc.
+- These mood keywords MUST appear in BOTH prompts
+- Examples: "cosmic dread", "clinical sterility", "primal isolation", "desperate urgency"
+
+**STEP 3: Generate two complementary shots:**
 
 **PROMPT 1 - ESTABLISHING SHOT (Full Scene):**
 - Character + environment + key objects together
 - Shows spatial relationships and complete context
 - Wide to medium shot
+- MUST INCLUDE: 1-2 mood keywords from Step 2
 - Answers: Who is here? Where are they? What are they doing?
 
 **PROMPT 2 - DETAIL/FOCUS SHOT (Key Story Element):**
@@ -353,19 +369,21 @@ You will generate 2 prompts that work together to tell the complete visual story
   * Important interaction → hands + object interaction
   * Environmental storytelling element → focus on that background detail
 - Medium to close-up
+- MUST INCLUDE: Same 1-2 mood keywords from Step 2
 - Answers: What specific detail drives this moment of the story?
 
 **SHARED ELEMENTS (Must be consistent):**
 - Character appearance, clothing, base pose
 - Location, time, weather
 - Lighting direction, color palette
+- **Same 1-2 mood keywords** (from narration analysis)
 - Mood, atmosphere
 
 **Think like a film director:**
-- Shot 1 (Establishing): "Here's the researcher in the lab, holding a photograph"
-- Shot 2 (Detail): "Here's what's in that photograph - and why it matters"
+- Shot 1 (Establishing): "Here's the researcher in the lab, holding a photograph" + mood keywords
+- Shot 2 (Detail): "Here's what's in that photograph - and why it matters" + same mood keywords
 
-Both shots are from the same scene, same moment - but Shot 2 reveals the story detail that Shot 1 sets up.
+Both shots are from the same scene, same moment - but Shot 2 reveals the story detail that Shot 1 sets up. Both MUST include the same 1-2 mood keywords extracted from the narration.
 
 Generate the JSON now. Output ONLY JSON in ENGLISH. Focus on CHARACTER and BACKGROUND for visual storytelling.
 """
