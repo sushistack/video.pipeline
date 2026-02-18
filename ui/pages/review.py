@@ -29,19 +29,21 @@ def page() -> rx.Component:
             on_reload_callback=ReviewState.load_projects,
         ),
 
-        # Language Checkboxes (disabled if SRT doesn't exist)
+        # Language Toggles (Button style)
         rx.hstack(
-            rx.checkbox(
+            rx.button(
                 "🇯🇵 Japanese",
-                checked=ReviewState.show_ja,
-                on_change=ReviewState.set_show_ja,
+                variant=rx.cond(ReviewState.show_ja, "solid", "outline"),
+                on_click=ReviewState.set_show_ja(~ReviewState.show_ja),
                 disabled=~ReviewState.has_ja_srt,
+                opacity=rx.cond(ReviewState.has_ja_srt, 1, 0.5),
             ),
-            rx.checkbox(
+            rx.button(
                 "🇺🇸 English",
-                checked=ReviewState.show_en,
-                on_change=ReviewState.set_show_en,
+                variant=rx.cond(ReviewState.show_en, "solid", "outline"),
+                on_click=ReviewState.set_show_en(~ReviewState.show_en),
                 disabled=~ReviewState.has_en_srt,
+                opacity=rx.cond(ReviewState.has_en_srt, 1, 0.5),
             ),
             spacing="4",
         ),
