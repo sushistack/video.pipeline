@@ -38,6 +38,10 @@ class ImagePrompterState(rx.State):
     image_prompts: list[dict] = []
     prompts_file_path: str = ""
 
+    # Content info
+    content_title: str = ""
+    aspect_ratio: str = "16:9"
+
     # Computed properties
     @rx.var
     def can_generate(self) -> bool:
@@ -64,6 +68,7 @@ class ImagePrompterState(rx.State):
     def set_selected_project(self, value: str):
         """Set selected project"""
         self.selected_project = value
+        self.extract_content_title()
 
     def log(self, message: str):
         """Add log message"""
@@ -101,8 +106,37 @@ class ImagePrompterState(rx.State):
             # Auto-select first project if none selected
             if self.available_projects and not self.selected_project:
                 self.selected_project = self.available_projects[0]
+                self.extract_content_title()
         else:
             self.available_projects = []
+
+    def extract_content_title(self):
+        """Extract title from ko.content.md file"""
+        if not self.selected_project:
+            self.content_title = ""
+            return
+
+        content_file = PARENT_DIR / "workspace" / self.selected_project / "content" / "ko.content.md"
+        if content_file.exists():
+            try:
+                with open(content_file, "r", encoding="utf-8") as f:
+                    first_line = f.readline().strip()
+                    # Remove markdown heading marker if present
+                    if first_line.startswith("# "):
+                        self.content_title = first_line[2:]
+                    else:
+                        self.content_title = first_line
+            except Exception as e:
+                print(f"Failed to extract title: {e}")
+                self.content_title = ""
+        else:
+            self.content_title = ""
+
+    def set_selected_project(self, value: str):
+        """Set selected project"""
+        self.selected_project = value
+        self.extract_content_title()
+        self.extract_content_title()
 
     async def generate_prompts(self):
         """Generate image prompts for selected project"""

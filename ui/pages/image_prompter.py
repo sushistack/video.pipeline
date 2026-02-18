@@ -361,6 +361,66 @@ def page() -> rx.Component:
             margin_top="32px",
         ),
 
+        # Aspect Ratio & Title Hint (Fixed Info Bar)
+        rx.hstack(
+            # Aspect Ratio Display
+            rx.vstack(
+                rx.hstack(
+                    rx.icon("monitor", size=20, color="var(--blue-9)"),
+                    rx.text("Aspect Ratio", weight="bold", size="2"),
+                    align_items="center",
+                    spacing="2",
+                ),
+                rx.badge(
+                    "16:9",
+                    color_scheme="blue",
+                    variant="solid",
+                    size="3",
+                    padding="8px 16px",
+                ),
+                align_items="center",
+                padding="16px",
+                background_color="rgba(30, 40, 50, 0.8)",
+                border_radius="8px",
+                border="1px solid var(--blue-8)",
+            ),
+
+            # Title Hint
+            rx.cond(
+                ImagePrompterState.content_title != "",
+                rx.vstack(
+                    rx.hstack(
+                        rx.icon("book-open", size=20, color="var(--gray-9)"),
+                        rx.text("Content Title", weight="bold", size="2"),
+                        align_items="center",
+                        spacing="2",
+                    ),
+                    rx.text(
+                        ImagePrompterState.content_title,
+                        size="2",
+                        color_scheme="gray",
+                        line_height="1.6",
+                        max_width="600px",
+                    ),
+                    align_items="start",
+                    padding="16px",
+                    background_color="rgba(40, 40, 40, 0.8)",
+                    border_radius="8px",
+                    border="1px solid var(--gray-7)",
+                    flex_grow="1",
+                ),
+            ),
+
+            width="100%",
+            spacing="4",
+            align_items="stretch",
+            margin_top="24px",
+            padding="16px",
+            background_color="rgba(35, 35, 35, 0.9)",
+            border_radius="12px",
+            border="1px solid rgba(255, 255, 255, 0.05)",
+        ),
+
         # Log Viewer
         rx.vstack(
             rx.heading("📋 Logs", size="5", margin_bottom="2"),
