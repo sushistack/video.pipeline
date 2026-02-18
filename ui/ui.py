@@ -1,6 +1,6 @@
 """Video Pipeline - Multi-Page Application"""
 import reflex as rx
-from .pages import index, audio, scenario, subtitle, extract, review, project
+from .pages import index, audio, scenario, subtitle, extract, review, project, image_prompter
 
 
 # Create the app
@@ -12,6 +12,7 @@ app.add_page(extract.page, route="/extract", title="Video Pipeline | Extract", o
 app.add_page(review.page, route="/review", title="Video Pipeline | Review", on_load=review.ReviewState.on_load)
 app.add_page(scenario.page, route="/scenario", title="Video Pipeline | Scenario", on_load=scenario.ScenarioState.on_load)
 app.add_page(audio.page, route="/audio", title="Video Pipeline | Audio", on_load=audio.AudioState.on_load)
+app.add_page(image_prompter.page, route="/image-prompter", title="Video Pipeline | Image Prompter", on_load=image_prompter.ImagePrompterState.on_load)
 
 # Mount workspace directory to serve generated audio files
 from fastapi.staticfiles import StaticFiles

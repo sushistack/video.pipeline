@@ -36,6 +36,12 @@ def page() -> rx.Component:
                 "purple"
             ),
             _feature_card(
+                "🎨 Image Prompter",
+                "AI image prompt generation",
+                "/image-prompter",
+                "pink"
+            ),
+            _feature_card(
                 "📝 Subtitle",
                 "Subtitle preview",
                 "/subtitle",

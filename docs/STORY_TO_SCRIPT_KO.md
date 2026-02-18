@@ -78,7 +78,7 @@ video.pipeline/
 
 ```bash
 # 필수
-GEMINI_API_KEY=AIzaSyDp1xfoRX9p3hZXzFEcJ85qKWRccBxHNfA
+GEMINI_API_KEY=your_gemini_api_key_here
 
 # 선택 (Step 4 에서 사용)
 DEEPSEEK_API_KEY=your_deepseek_api_key
