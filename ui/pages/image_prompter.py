@@ -94,36 +94,7 @@ def prompt_card(prompt_data: dict, index: int) -> rx.Component:
                 border_left="4px solid var(--gray-6)",
             ),
 
-            # Multi-Angle Camera Prompt (right after image prompt)
-            rx.vstack(
-                rx.hstack(
-                    rx.text("🎥 Multi-Angle Camera Prompt", weight="bold", size="2"),
-                    rx.icon_button(
-                        rx.icon("copy", size=16),
-                        variant="ghost",
-                        size="1",
-                        color_scheme="gray",
-                        on_click=lambda: rx.set_clipboard(prompt_data.get("multi_angle_camera_prompt", "")),
-                        tooltip="Copy camera prompt",
-                    ),
-                    justify="between",
-                    align_items="center",
-                    width="100%",
-                ),
-                rx.text(
-                    prompt_data.get("multi_angle_camera_prompt", "Multi-angle camera prompt will be generated..."),
-                    size="2",
-                    line_height="1.6",
-                    color_scheme="gray",
-                    white_space="pre",
-                ),
-                width="100%",
-                spacing="2",
-                padding="16px",
-                background_color="rgba(35, 45, 55, 0.9)",
-                border_radius="8px",
-                border_left="4px solid var(--blue-8)",
-            ),
+            # Multi-Angle Camera Prompt 1 (Subject Focus)
 
             # Negative Prompt
             rx.cond(
@@ -229,34 +200,6 @@ def prompt_card(prompt_data: dict, index: int) -> rx.Component:
                 border_radius="8px",
                 border_left="4px solid var(--gray-6)",
             ),
-
-            # Video Prompt (if exists)
-            rx.cond(
-                rx.Var.create(prompt_data.get("video_prompt")).to(dict).get("video_prompt", "") != "",
-                rx.vstack(
-                    rx.hstack(
-                        rx.icon("video", color="blue", size=20),
-                        rx.text("🎬 Video Prompt", weight="bold", size="2"),
-                        align_items="center",
-                        spacing="2",
-                    ),
-                    rx.text(
-                        rx.Var.create(prompt_data.get("video_prompt")).to(dict).get("video_prompt", ""),
-                        size="2",
-                        line_height="1.8",
-                        color_scheme="gray",
-                    ),
-                    width="100%",
-                    spacing="2",
-                    margin_top="12px",
-                    padding="16px",
-                    background_color="rgba(30, 40, 50, 0.8)",
-                    border_radius="8px",
-                    border_left="4px solid var(--blue-9)",
-                ),
-            ),
-
-
 
             width="100%",
             spacing="4",
@@ -380,6 +323,42 @@ def page() -> rx.Component:
                 width="100%",
                 spacing="3",
             ),
+        ),
+
+        # Fixed Video Prompt (Independent Section)
+        rx.vstack(
+            rx.hstack(
+                rx.icon("video", color="blue", size=24),
+                rx.heading("🎬 Fixed Video Prompt", size="5"),
+                align_items="center",
+                spacing="3",
+            ),
+            rx.text(
+                "A rapid series of sharp cuts between as many different camera angles and distances as possible: "
+                "switching instantly between extreme close-up, wide shot, bird's-eye view, low angle, and side profile, "
+                "with zero camera motion within each shot and instant transitions.",
+                size="3",
+                line_height="1.8",
+                color_scheme="gray",
+            ),
+            rx.button(
+                "📋 Copy Video Prompt",
+                on_click=rx.set_clipboard(
+                    "A rapid series of sharp cuts between as many different camera angles and distances as possible: "
+                    "switching instantly between extreme close-up, wide shot, bird's-eye view, low angle, and side profile, "
+                    "with zero camera motion within each shot and instant transitions."
+                ),
+                color_scheme="blue",
+                variant="solid",
+                size="3",
+            ),
+            width="100%",
+            spacing="4",
+            padding="24px",
+            background_color="rgba(30, 40, 50, 0.9)",
+            border_radius="12px",
+            border="2px solid var(--blue-9)",
+            margin_top="32px",
         ),
 
         # Log Viewer

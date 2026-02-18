@@ -40,7 +40,7 @@ class ImagePromptGenerator:
         
         # Initialize Gemini client
         self.gemini_client = genai.Client(api_key=self.gemini_api_key)
-        self.gemini_model = "gemini-3-flash-preview"  # Stable model
+        self.gemini_model = "gemini-2.0-flash"  # Stable model
         
         # Prompts directory
         self.prompts_dir = self.base_dir / "assets" / "prompts"
@@ -247,18 +247,24 @@ class ImagePromptGenerator:
             # Parse response
             prompt_json = self._parse_json_response(response.text)
             
-            # Ensure prompt_json is a dict, not a list
-            if isinstance(prompt_json, list):
-                self.log(f"    [!] Warning: API returned list instead of dict, using empty dict", log_callback)
-                prompt_json = {}
-
-            # Handle both single prompt and 2 prompts
+            # Handle both list and dict responses
             if isinstance(prompt_json, list) and len(prompt_json) >= 2:
-                # Got 2 prompts as array
+                # Got 2 prompts as array - this is what we want!
                 prompts = prompt_json[:2]
-            else:
-                # Single prompt or dict - generate 2 variations
+                self.log(f"    [+] Received 2 prompts from API (list format)", log_callback)
+            elif isinstance(prompt_json, list) and len(prompt_json) == 1:
+                # Got 1 prompt in list
+                prompts = [prompt_json[0], prompt_json[0]]
+                self.log(f"    [+] Received 1 prompt from API, duplicating", log_callback)
+            elif isinstance(prompt_json, dict) and prompt_json:
+                # Got single dict - create 2 variations
                 prompts = [prompt_json, prompt_json]
+                self.log(f"    [+] Received 1 prompt from API (dict format), duplicating", log_callback)
+            else:
+                # Empty or invalid response - use fallback
+                self.log(f"    [!] Warning: API returned empty/invalid response, using fallback", log_callback)
+                fallback = {"prompt": f"Cinematic image for: {section_content[:100]}"}
+                prompts = [fallback, fallback]
 
             # Add metadata for both prompts
             prompt_data = {
@@ -267,8 +273,8 @@ class ImagePromptGenerator:
                 "section_type": section_type,
                 "estimated_duration": section_duration,
                 "narration_text": section_content,
-                "image_prompt": prompts[0].get("prompt", "") if isinstance(prompts[0], dict) else str(prompts[0]),
-                "image_prompt_2": prompts[1].get("prompt", "") if isinstance(prompts[1], dict) else str(prompts[1]),
+                "image_prompt": prompts[0].get("prompt", "") if isinstance(prompts[0], dict) else str(prompts[0]) if prompts[0] else "",
+                "image_prompt_2": prompts[1].get("prompt", "") if isinstance(prompts[1], dict) else str(prompts[1]) if prompts[1] else "",
                 "negative_prompt": prompts[0].get("negative_prompt", "") if isinstance(prompts[0], dict) else "",
                 "style_reference": prompts[0].get("style_reference", "") if isinstance(prompts[0], dict) else "cinematic, photorealistic, 8k",
                 "continuity_notes": prompts[0].get("continuity_notes", "") if isinstance(prompts[0], dict) else "",
@@ -566,38 +572,71 @@ Generate the JSON now. Output ONLY the JSON in ENGLISH, no other text. **ENGLISH
         image_prompt_data: dict,
         section_index: int,
         total_sections: int,
+        prompt_type: str = "subject",  # "subject" or "environment"
         log_callback: Callable[[str], None] | None = None
     ) -> str:
         """
         Generate a simple multi-angle camera prompt for 10-second video from single image.
-        Simplified format - just the camera movements, no time breakdowns. Max 500 characters.
+        Target: 300-500 characters with detailed camera movements.
         """
         try:
             section_title = section.get("title", "Unknown")
-            image_prompt = image_prompt_data.get("image_prompt", "")
+            image_prompt = image_prompt_data.get(f"image_prompt" if prompt_type == "subject" else "image_prompt_2", "")
             
-            # Build simple multi-angle camera prompt (max 500 chars)
-            camera_prompt = f"""MULTI-ANGLE CAMERA PROMPT (10 sec)
+            # Different focus based on prompt type
+            if prompt_type == "subject":
+                camera_prompt = f"""MULTI-ANGLE CAMERA PROMPT - SUBJECT FOCUS (10 seconds)
 
-EXTREME CLOSE-UP on key detail → QUICK ZOOM OUT to reveal full scene → RAPID PAN across environment → LOW ANGLE to HIGH ANGLE cut → MEDIUM SHOT with slow push-in.
+OPENING: Extreme close-up on subject's most distinctive feature - eyes, face, or defining characteristic. Shallow depth of field isolates the subject from background.
 
-Handheld shake. Quick snap zooms. Swift pans with motion blur. Dutch angles. Overhead shots. POV cuts. Rack focus.
+QUICK ZOOM OUT: Rapid pull-back to reveal full subject in environment. Subject fills center frame, commanding attention.
 
-Dynamic movement, high energy, cinematic pacing.
+RAPID PAN: Swift 180-degree pan around subject, showing relationship to surroundings. Handheld shake adds tension and immediacy.
 
-Base: {image_prompt[:150]}
+ANGLE TRANSITION: Dynamic cut from low angle hero shot (subject dominates frame) to high angle overhead view (subject in context). Creates dramatic perspective shift.
+
+CLOSING: Medium shot with slow, deliberate push-in toward subject. Building tension, drawing viewer into intimate connection.
+
+CAMERA TECHNIQUES: Handheld camera shake throughout for realism and urgency. Quick snap zooms on key subject features. Swift pans with controlled motion blur. Dutch angles for psychological unease. Rack focus between subject and foreground elements. Subject-centered framing maintains focus on character.
+
+MOOD & ENERGY: High tension, dynamic movement, cinematic pacing. Build from intimate close-up to epic establishing shot to personal medium push-in. Predator's grace, controlled intensity.
+
+Base Image: {image_prompt[:200]}
 """
-            # Ensure max 500 characters
-            if len(camera_prompt) > 500:
-                camera_prompt = camera_prompt[:497] + "..."
+            else:  # environment
+                camera_prompt = f"""MULTI-ANGLE CAMERA PROMPT - ENVIRONMENT FOCUS (10 seconds)
+
+OPENING: Extreme close-up on critical environmental detail - texture, object, or atmospheric element. Macro-level observation draws viewer into world.
+
+QUICK ZOOM OUT: Rapid pull-back to reveal full environment and landscape. Context expands dramatically, showing scale and scope of location.
+
+RAPID PAN: Swift panoramic sweep across environment, left to right or right to left. Reveals background elements, depth layers, and atmospheric conditions.
+
+ANGLE TRANSITION: Dynamic cut from overhead establishing shot (bird's eye view showing layout) to ground level worm's eye view (immersive perspective). Creates spatial awareness and dramatic contrast.
+
+CLOSING: Wide shot with slow push-in through environment, moving deeper into scene. Drawing viewer into the world, building immersion and anticipation.
+
+CAMERA TECHNIQUES: Handheld camera shake for documentary realism. Quick snap zooms on environmental details and textures. Swift landscape pans with controlled motion blur. Dutch angles for psychological unease and disorientation. Overhead establishing shots for geographic context. Environment-centered framing emphasizes location over character.
+
+MOOD & ENERGY: Atmospheric tension, epic scale, cinematic world-building. Build from microscopic detail to macroscopic vista to immersive journey. Environmental storytelling through camera movement.
+
+Base Image: {image_prompt[:200]}
+"""
             
-            self.log(f"    [+] Multi-angle camera prompt generated for '{section_title}' ({len(camera_prompt)} chars)", log_callback)
+            # Ensure 300-500 characters (no truncation with ...)
+            if len(camera_prompt) < 300:
+                camera_prompt = camera_prompt + " " * (300 - len(camera_prompt))
+            # Don't truncate - keep full content even if over 500 chars
+            # Just ensure minimum 300 chars
+            
+            self.log(f"    [+] Multi-angle camera prompt generated for '{section_title}' ({prompt_type}, {len(camera_prompt)} chars)", log_callback)
             
             return camera_prompt
             
         except Exception as e:
             self.log(f"    [!] Multi-angle camera prompt generation failed: {e}", log_callback)
-            return f"MULTI-ANGLE CAMERA PROMPT (10 sec)\n\nEXTREME CLOSE-UP → QUICK ZOOM OUT → RAPID PAN → LOW TO HIGH ANGLE → MEDIUM SHOT PUSH-IN\n\nBase: {image_prompt[:150]}"
+            fallback = f"MULTI-ANGLE CAMERA PROMPT ({prompt_type.upper()}, 10 sec)\n\nEXTREME CLOSE-UP → QUICK ZOOM OUT → RAPID PAN → LOW TO HIGH ANGLE → MEDIUM SHOT PUSH-IN\n\nHandheld shake. Quick zooms. Swift pans. Dutch angles. Dynamic movement.\n\nBase: {image_prompt[:150]}"
+            return fallback
 
     def _parse_json_response(self, text: str) -> dict:
         """Parse JSON from model response"""

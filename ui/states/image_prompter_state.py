@@ -183,17 +183,32 @@ class ImagePrompterState(rx.State):
                 prompt_data["video_prompt"] = video_prompt
                 yield
 
-                # Generate multi-angle camera prompt
-                self.log(f"    [-] Generating multi-angle camera prompt...")
+                # Generate multi-angle camera prompt for subject focus
+                self.log(f"    [-] Generating multi-angle camera prompt (subject)...")
                 yield
-                multi_angle_prompt = await generator._generate_multi_angle_camera_prompt(
+                multi_angle_subject = await generator._generate_multi_angle_camera_prompt(
                     section=section,
                     image_prompt_data=prompt_data,
                     section_index=idx,
                     total_sections=self.total_sections,
+                    prompt_type="subject",
                     log_callback=log_callback
                 )
-                prompt_data["multi_angle_camera_prompt"] = multi_angle_prompt
+                prompt_data["multi_angle_camera_prompt_subject"] = multi_angle_subject
+                yield
+
+                # Generate multi-angle camera prompt for environment focus
+                self.log(f"    [-] Generating multi-angle camera prompt (environment)...")
+                yield
+                multi_angle_env = await generator._generate_multi_angle_camera_prompt(
+                    section=section,
+                    image_prompt_data=prompt_data,
+                    section_index=idx,
+                    total_sections=self.total_sections,
+                    prompt_type="environment",
+                    log_callback=log_callback
+                )
+                prompt_data["multi_angle_camera_prompt_environment"] = multi_angle_env
                 yield
 
                 image_prompts.append(prompt_data)
@@ -265,10 +280,15 @@ class ImagePrompterState(rx.State):
                     if isinstance(video_prompt, dict):
                         f.write(f"[VIDEO PROMPT]\n{video_prompt.get('video_prompt', '')}\n\n")
                     
-                    # Multi-angle camera prompt (simple format)
-                    multi_angle = prompt_data.get("multi_angle_camera_prompt", "")
-                    if multi_angle:
-                        f.write(f"[MULTI-ANGLE CAMERA PROMPT]\n{multi_angle}\n")
+                    # Multi-angle camera prompt - Subject Focus
+                    multi_angle_subject = prompt_data.get("multi_angle_camera_prompt_subject", "")
+                    if multi_angle_subject:
+                        f.write(f"[MULTI-ANGLE CAMERA - SUBJECT FOCUS]\n{multi_angle_subject}\n\n")
+                    
+                    # Multi-angle camera prompt - Environment Focus
+                    multi_angle_env = prompt_data.get("multi_angle_camera_prompt_environment", "")
+                    if multi_angle_env:
+                        f.write(f"[MULTI-ANGLE CAMERA - ENVIRONMENT FOCUS]\n{multi_angle_env}\n")
             
             # Log summary
             self.log(f"    📝 Saved {len(image_prompts)} image prompt files (2 prompts each)")
