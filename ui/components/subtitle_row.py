@@ -106,11 +106,11 @@ def subtitle_row(row: dict) -> rx.Component:
                     }
                 ),
                 
-                # Language Text Areas - Conditional display based on checkboxes
+                # Language Text Areas - Show only if data exists
                 rx.grid(
-                    # Japanese (conditional)
+                    # Japanese (show only if text_ja exists)
                     rx.cond(
-                        ReviewState.show_ja,
+                        row["text_ja"] != "",
                         rx.vstack(
                             rx.text("🇯🇵 Japanese", size="2", weight="bold"),
                                 rx.text_area(
@@ -124,9 +124,9 @@ def subtitle_row(row: dict) -> rx.Component:
                             align="start",
                             width="100%",
                         ),
-                        rx.box(),  # Empty placeholder when hidden
+                        rx.box(),  # Empty placeholder when no data
                     ),
-                    
+
                     # Korean (always shown)
                     rx.vstack(
                         rx.text("🇰🇷 Korean", size="2", weight="bold"),
@@ -141,10 +141,10 @@ def subtitle_row(row: dict) -> rx.Component:
                         align="start",
                         width="100%",
                     ),
-                    
-                    # English (conditional)
+
+                    # English (show only if text_en exists)
                     rx.cond(
-                        ReviewState.show_en,
+                        row["text_en"] != "",
                         rx.vstack(
                             rx.text("🇺🇸 English", size="2", weight="bold"),
                             rx.text_area(
@@ -158,9 +158,9 @@ def subtitle_row(row: dict) -> rx.Component:
                             align="start",
                             width="100%",
                         ),
-                        rx.box(),  # Empty placeholder when hidden
+                        rx.box(),  # Empty placeholder when no data
                     ),
-                    
+
                     columns="3",
                     spacing="4",
                     width="100%",

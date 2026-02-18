@@ -28,8 +28,8 @@ class ReviewState(rx.State):
     deleted_rows: set[int] = set()  # Track deleted row IDs
     
     # UI toggles
-    show_en: bool = True
-    show_ja: bool = True
+    show_en: bool = False
+    show_ja: bool = False
     
     # Setters for toggles
     def set_show_ja(self, value: bool):
