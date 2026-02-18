@@ -163,7 +163,7 @@ class Qwen3TTSProvider(TTSProvider):
         # Use local model if available, otherwise use HuggingFace model_id
         model_path = None
         log_msg = ""
-        cache_dir = base_dir / "assets" / "models" / ".cache"
+        cache_dir = self.base_dir / "assets" / "models" / ".cache"
         
         if local_path and local_path.exists():
             model_path = str(local_path)
