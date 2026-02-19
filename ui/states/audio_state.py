@@ -815,7 +815,6 @@ class ScenarioState(rx.State):
 
     def on_load(self):
         """Load projects and voice files"""
-        print("[DEBUG] ScenarioState.on_load called")
         
         # Load projects - any SRT file is sufficient
         output_root = PARENT_DIR / "workspace"
@@ -830,7 +829,6 @@ class ScenarioState(rx.State):
                 )
             ]
             self.available_projects = sorted(projects)
-            print(f"[DEBUG] Found projects: {self.available_projects}")
 
             # Auto-select first project in ScenarioState
             if self.available_projects and not self.selected_project:
@@ -1048,7 +1046,6 @@ class SubtitleState(rx.State):
         if output_root.exists():
             projects = [p.name for p in output_root.iterdir() if p.is_dir()]
             self.available_projects = sorted(projects)
-            print(f"[DEBUG] Found projects: {self.available_projects}")
 
             # Auto-select first project
             if self.available_projects and not self.selected_project:
