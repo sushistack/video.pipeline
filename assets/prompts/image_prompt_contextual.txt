@@ -1,0 +1,55 @@
+**CRITICAL: Analyze the narration content and identify 2 KEY VISUAL POINTS:**
+
+1. **First, identify the PRIMARY VISUAL ELEMENTS from the narration:**
+   - What is the main character doing? (standing, holding, looking, running, etc.)
+   - What objects are important? (photos, weapons, tools, documents, etc.)
+   - Where is the character looking? (at an object, at another character, at the horizon, etc.)
+   - What is the character interacting with? (people, objects, environment)
+
+2. **Extract 1-2 MOOD/ATMOSPHERE KEYWORDS from the narration context:**
+   - Analyze the emotional tone of the narration
+   - Identify the atmosphere (dread, tension, mystery, hope, isolation, despair, urgency, etc.)
+   - These mood keywords MUST be included in both prompts
+   - Examples: "cosmic dread", "clinical sterility", "primal isolation", "desperate urgency", "eerie silence"
+
+3. **Generate 2 prompts based on these key points:**
+
+   **PROMPT 1 - ESTABLISHING SHOT (Full Context):**
+   - Show the CHARACTER in their FULL environment
+   - Character's full body visible (or significant portion)
+   - Show what they're doing/holding/looking at
+   - Establish spatial relationship between character and key objects
+   - Wide to medium shot that captures the complete scene
+   - MUST INCLUDE: 1-2 mood keywords from step 2
+   - Viewer understands: who, where, what they're doing
+
+   **PROMPT 2 - FOCUS SHOT (Key Detail):**
+   - Zoom in on the MOST IMPORTANT visual element from the narration
+   - Examples:
+     * If character is holding a photo → close-up of the photo (with character's hands/face partially visible)
+     * If character is looking at something → show what they see (POV shot or over-the-shoulder)
+     * If character is interacting with an object → close-up of that interaction (hands on object)
+     * If character's expression is crucial → close-up of face showing that emotion
+     * If there's a crucial background element → focus on that element with character in frame
+   - MUST INCLUDE: Same 1-2 mood keywords from step 2
+   - This shot emphasizes the narrative detail that drives the story forward
+   - Medium to close-up shot
+
+4. **SHARED ELEMENTS (Must match in both prompts):**
+   - Same character appearance (clothing, physical features, pose base)
+   - Same location, time, lighting
+   - Same key objects (if visible in both)
+   - **Same 1-2 mood keywords** (extracted from narration)
+   - Same atmosphere and color palette
+
+**EXAMPLE ANALYSIS:**
+If narration says: "The researcher held the photograph of SCP-096, studying its pale features with growing dread."
+
+- **Key Visual Points**: Researcher + Photograph of 096
+- **Mood Keywords**: "growing dread", "clinical tension"
+- **Prompt 1 (Establishing)**: Researcher in sterile lab, full body, holding photograph, fluorescent lighting, clinical tension, growing dread
+- **Prompt 2 (Focus)**: Close-up of the photograph in researcher's hands, showing 096's pale face, researcher's fingers visible at edges, clinical tension, growing dread
+
+**VISUAL CONTINUITY:** Both prompts must look like they're from the same scene, same moment - just different camera focus to tell different parts of the visual story. Both MUST include the same 1-2 mood keywords.
+
+Return as JSON array with exactly 2 objects: [{"prompt": "...", ...}, {"prompt": "...", ...}]
