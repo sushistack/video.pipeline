@@ -1,13 +1,21 @@
-"""Story-to-Script Generation Pipeline"""
+"""Story-to-Script Generation Pipeline (6-Step Architecture)
+
+Pipeline Flow:
+1. Research (Gemini) → 순수 자료 수집 (대본 X)
+2. Structure (DeepSeek) → 씬 뼈대 설계 (문장 X)
+3. Writing (Qwen) → 실제 대본 집필
+4. Review (Gemini) → 비평 + 부분 수정만
+5. Formatting → 녹음용 포맷 (JSON)
+6. SRT → TTS용 자막 파일
+"""
 
 import os
-import sys
 import json
-import time
-import typing
 import asyncio
 import aiohttp
 from pathlib import Path
+from typing import Callable
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -18,16 +26,27 @@ if env_path.exists():
 from google import genai
 from google.genai import types
 
+from core.models.script_models import (
+    ResearchPacket,
+    SceneStructure,
+    NarrationScript,
+    NarrationLine,
+    ReviewResult,
+    RecordingScript,
+    RecordingInstruction,
+)
 
-class StoryToScriptGenerator:
-    """
-    Generates YouTube narration scripts from story topics through multi-step AI processing.
 
-    Workflow:
-    1. Content Research: Generate comprehensive content markdown using Gemini
-    2. Narration Script: Convert content to YouTube narration format
-    3. 3-Step Improvement: Gemini → DeepSeek → Qwen refinement
-    4. Subtitle Generation: Create SRT subtitle file
+class StoryScriptPipeline:
+    """6단계 스토리 스크립트 파이프라인
+
+    각 단계는 명확히 다른 역할을 수행:
+    - Step 1: 리서치 (자료 수집만, 대본 X)
+    - Step 2: 구조 설계 (뼈대만, 문장 X)
+    - Step 3: 대본 집필 (실제 문장 작성)
+    - Step 4: 품질 검증 (부분 수정만, 전체 재작성 X)
+    - Step 5: 녹음 포맷팅 (메타데이터 추가)
+    - Step 6: SRT 생성 (자막 파일)
     """
 
     def __init__(self, workspace_dir: Path | None = None, project_id: str | None = None):
@@ -38,84 +57,75 @@ class StoryToScriptGenerator:
         if project_id:
             self.project_id = project_id
         else:
-            # Auto-generate project ID with timestamp
             import datetime
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             self.project_id = f"project_{timestamp}"
 
-        # Directory setup (per project)
+        # Directory setup
         self.project_dir = self.workspace_dir / self.project_id
-        self.content_dir = self.project_dir / "content"
         self.scripts_dir = self.project_dir / "scripts"
         self.subtitles_dir = self.project_dir / "subtitles"
 
-        for dir_path in [self.content_dir, self.scripts_dir, self.subtitles_dir]:
+        for dir_path in [self.scripts_dir, self.subtitles_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
-        
+
         # API Keys
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
         self.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
-        self.dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")  # For Qwen
-        
+        self.dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
+
         if not self.gemini_api_key:
             raise ValueError("GEMINI_API_KEY not found in .env")
-        
+
         # Initialize Gemini client
         self.gemini_client = genai.Client(api_key=self.gemini_api_key)
-        
+
         # Model configurations
-        self.gemini_model = "gemini-3-flash-preview"  # gemini-3-pro-preview equivalent
+        self.gemini_model = "gemini-2.5-flash-preview-05-20"
         self.deepseek_model = "deepseek-reasoner"
-        self.qwen_model = "qwen-plus"  # qwen3.5-plus equivalent
-        
+        self.qwen_model = "qwen3.5-plus"
+
         # Prompts directory
         self.prompts_dir = self.base_dir / "assets" / "prompts"
-        
-        # State tracking
+
+        # State
         self.current_step = 0
-        self.total_steps = 7
-        
-    def log(self, message: str, callback: typing.Callable[[str], None] | None = None):
+        self.total_steps = 6
+
+    def log(self, message: str, callback: Callable[[str], None] | None = None):
         """Log message with optional callback"""
         print(message)
         if callback:
             callback(message)
-    
+
     def _load_prompt(self, filename: str) -> str:
         """Load prompt template from file"""
         prompt_path = self.prompts_dir / filename
         if not prompt_path.exists():
             raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
         return prompt_path.read_text(encoding="utf-8")
-    
-    # ========== Step 1: Content Research ==========
-    
-    async def generate_content(
-        self, 
-        topic: str, 
+
+    # ========== Step 1: Research (Gemini) ==========
+
+    async def step1_research(
+        self,
+        topic: str,
         context: str = "",
-        log_callback: typing.Callable[[str], None] | None = None
-    ) -> Path:
-        """
-        Step 1: Generate comprehensive content markdown using Gemini.
-        
-        Args:
-            topic: Story title or topic
-            context: Additional context (optional)
-            log_callback: Optional callback for logging
-            
-        Returns:
-            Path to generated ko.content.md file
+        log_callback: Callable[[str], None] | None = None
+    ) -> ResearchPacket:
+        """Step 1: 리서치 - 순수 자료 수집 (대본 X)
+
+        Model: Gemini (웹 접근 강점)
+        입력: topic, context
+        출력: ResearchPacket (Markdown)
         """
         self.current_step = 1
-        self.log(f"[-] Step 1/7: Generating content research for '{topic}'...", log_callback)
-        
+        self.log(f"[-] Step 1/6: Research - Collecting facts for '{topic}'...", log_callback)
+
         try:
-            # Load prompt
-            prompt_template = self._load_prompt("generate_content.md")
-            prompt = prompt_template.replace("{topic}", topic).replace("{context}", context or "None")
-            
-            # Generate content using Gemini
+            prompt_template = self._load_prompt("step1_research.md")
+            prompt = prompt_template.replace("{topic}", topic).replace("{context}", context or "없음")
+
             response = self.gemini_client.models.generate_content(
                 model=self.gemini_model,
                 contents=prompt,
@@ -125,209 +135,339 @@ class StoryToScriptGenerator:
                     max_output_tokens=8192,
                 )
             )
-            
-            content_md = response.text.strip()
-            
-            # Clean up if wrapped in code blocks
-            if content_md.startswith("```markdown"):
-                content_md = content_md[11:]
-            if content_md.startswith("```"):
-                content_md = content_md[3:]
-            if content_md.endswith("```"):
-                content_md = content_md[:-3]
-            content_md = content_md.strip()
-            
+
+            raw_content = self._clean_markdown(response.text)
+
+            # Create ResearchPacket
+            packet = ResearchPacket(
+                topic=topic,
+                raw_content=raw_content,
+            )
+
             # Save to file
-            output_path = self.content_dir / "ko.content.md"
-            output_path.write_text(content_md, encoding="utf-8")
-            
-            self.log(f"[+] Content generated: {output_path}", log_callback)
-            self.log(f"    Characters: {len(content_md)}", log_callback)
-            
-            return output_path
-            
+            output_path = self.scripts_dir / "01_research_packet.md"
+            output_path.write_text(raw_content, encoding="utf-8")
+
+            self.log(f"[+] Research complete: {output_path}", log_callback)
+            self.log(f"    Characters: {len(raw_content)}", log_callback)
+
+            return packet
+
         except Exception as e:
-            self.log(f"[!] Content generation failed: {e}", log_callback)
+            self.log(f"[!] Research failed: {e}", log_callback)
             raise
-    
-    # ========== Step 2: Narration Script Generation ==========
-    
-    async def generate_narration_script(
+
+    # ========== Step 2: Structure (DeepSeek Reasoner) ==========
+
+    async def step2_structure(
         self,
-        content_path: Path | None = None,
-        log_callback: typing.Callable[[str], None] | None = None
-    ) -> Path:
-        """
-        Step 2: Generate YouTube narration script from content.
-        
-        Args:
-            content_path: Path to ko.content.md (default: workspace/project/content/ko.content.md)
-            log_callback: Optional callback for logging
-            
-        Returns:
-            Path to generated narration script JSON
+        research: ResearchPacket,
+        target_duration_minutes: int = 12,
+        log_callback: Callable[[str], None] | None = None
+    ) -> SceneStructure:
+        """Step 2: 구조 설계 - 씬 뼈대만 (문장 X)
+
+        Model: DeepSeek Reasoner (추론 강점)
+        입력: ResearchPacket
+        출력: SceneStructure (JSON)
         """
         self.current_step = 2
-        self.log("[-] Step 2/7: Generating narration script from content...", log_callback)
-        
+        self.log("[-] Step 2/6: Structure - Designing scene skeleton...", log_callback)
+
         try:
-            # Load content
-            content_path = content_path or (self.content_dir / "ko.content.md")
-            if not content_path.exists():
-                raise FileNotFoundError(f"Content file not found: {content_path}")
-            
-            content_md = content_path.read_text(encoding="utf-8")
-            
-            # Load prompt
-            prompt_template = self._load_prompt("generate_narration.md")
-            prompt = prompt_template.replace("{content_md}", content_md)
-            
-            # Generate script using Gemini
+            prompt_template = self._load_prompt("step2_structure.md")
+            prompt = (
+                prompt_template
+                .replace("{research_packet}", research.raw_content)
+                .replace("{target_duration}", str(target_duration_minutes))
+            )
+
+            if not self.deepseek_api_key:
+                self.log("[!] DeepSeek API key not found, using Gemini fallback...", log_callback)
+                structure_json = await self._call_gemini_json(prompt)
+            else:
+                structure_json = await self._call_deepseek_json(prompt)
+
+            # Parse into SceneStructure
+            structure = SceneStructure.from_dict(structure_json)
+            structure.topic = research.topic
+
+            # Save to file
+            output_path = self.scripts_dir / "02_scene_structure.json"
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(structure.to_dict(), f, indent=2, ensure_ascii=False)
+
+            self.log(f"[+] Structure complete: {output_path}", log_callback)
+            self.log(f"    Scenes: {len(structure.scenes)}", log_callback)
+
+            return structure
+
+        except Exception as e:
+            self.log(f"[!] Structure design failed: {e}", log_callback)
+            raise
+
+    # ========== Step 3: Writing (Qwen) ==========
+
+    async def step3_writing(
+        self,
+        structure: SceneStructure,
+        log_callback: Callable[[str], None] | None = None
+    ) -> NarrationScript:
+        """Step 3: 대본 집필 - 실제 나레이션 문장 작성
+
+        Model: Qwen (작문 강점)
+        입력: SceneStructure
+        출력: NarrationScript (JSON)
+        """
+        self.current_step = 3
+        self.log("[-] Step 3/6: Writing - Drafting narration script...", log_callback)
+
+        try:
+            prompt_template = self._load_prompt("step3_writing.md")
+            prompt = prompt_template.replace("{scene_structure}", structure.to_json())
+
+            if not self.dashscope_api_key:
+                self.log("[!] DashScope API key not found, using Gemini fallback...", log_callback)
+                script_json = await self._call_gemini_json(prompt)
+            else:
+                script_json = await self._call_qwen_json(prompt)
+
+            # Parse into NarrationScript
+            script = NarrationScript.from_dict(script_json)
+            script.topic = structure.topic
+
+            # Save to file
+            output_path = self.scripts_dir / "03_narration_draft.json"
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(script.to_dict(), f, indent=2, ensure_ascii=False)
+
+            self.log(f"[+] Writing complete: {output_path}", log_callback)
+            self.log(f"    Lines: {script.total_lines}", log_callback)
+
+            return script
+
+        except Exception as e:
+            self.log(f"[!] Writing failed: {e}", log_callback)
+            raise
+
+    # ========== Step 4: Review (Gemini) ==========
+
+    async def step4_review(
+        self,
+        script: NarrationScript,
+        log_callback: Callable[[str], None] | None = None
+    ) -> NarrationScript:
+        """Step 4: 품질 검증 - 부분 수정만 (전체 재작성 X)
+
+        Model: Gemini (비평가 역할)
+        입력: NarrationScript
+        출력: NarrationScript (패치 적용됨)
+        """
+        self.current_step = 4
+        self.log("[-] Step 4/6: Review - Critiquing and patching...", log_callback)
+
+        try:
+            prompt_template = self._load_prompt("step4_review.md")
+            prompt = prompt_template.replace("{script}", script.to_json())
+
+            review_json = await self._call_gemini_json(prompt)
+
+            # Parse ReviewResult
+            review = ReviewResult.from_dict(review_json)
+
+            # Save review result
+            review_path = self.scripts_dir / "04_review_result.json"
+            with open(review_path, "w", encoding="utf-8") as f:
+                json.dump(review.to_dict(), f, indent=2, ensure_ascii=False)
+
+            self.log(f"[+] Review complete: {review_path}", log_callback)
+            self.log(f"    Score: {review.overall_score}/10", log_callback)
+            self.log(f"    Patches: {len(review.patches)}", log_callback)
+
+            # Apply patches
+            reviewed_script = review.apply_to_script(script)
+
+            # Save reviewed script
+            output_path = self.scripts_dir / "04_narration_reviewed.json"
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(reviewed_script.to_dict(), f, indent=2, ensure_ascii=False)
+
+            return reviewed_script
+
+        except Exception as e:
+            self.log(f"[!] Review failed: {e}", log_callback)
+            raise
+
+    # ========== Step 5: Formatting ==========
+
+    async def step5_formatting(
+        self,
+        script: NarrationScript,
+        log_callback: Callable[[str], None] | None = None
+    ) -> RecordingScript:
+        """Step 5: 녹음용 포맷팅 - 메타데이터 추가
+
+        입력: NarrationScript
+        출력: RecordingScript (JSON with tone, pause, bgm, sfx, visual notes)
+        """
+        self.current_step = 5
+        self.log("[-] Step 5/6: Formatting - Adding recording metadata...", log_callback)
+
+        try:
+            prompt_template = self._load_prompt("step5_formatting.md")
+            prompt = prompt_template.replace("{script}", script.to_json())
+
+            format_json = await self._call_gemini_json(prompt)
+
+            # Parse RecordingScript
+            recording = RecordingScript.from_dict(format_json)
+            recording.topic = script.topic
+
+            # Save to file
+            output_path = self.scripts_dir / "05_recording_script.json"
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(recording.to_dict(), f, indent=2, ensure_ascii=False)
+
+            self.log(f"[+] Formatting complete: {output_path}", log_callback)
+            self.log(f"    Total duration: {recording.total_estimated_duration}s", log_callback)
+
+            return recording
+
+        except Exception as e:
+            self.log(f"[!] Formatting failed: {e}", log_callback)
+            raise
+
+    # ========== Step 6: SRT Generation ==========
+
+    async def step6_srt(
+        self,
+        recording: RecordingScript,
+        log_callback: Callable[[str], None] | None = None
+    ) -> Path:
+        """Step 6: SRT 생성 - TTS용 자막 파일
+
+        입력: RecordingScript
+        출력: ko.srt (SRT file)
+        """
+        self.current_step = 6
+        self.log("[-] Step 6/6: SRT - Generating subtitle file...", log_callback)
+
+        try:
+            prompt_template = self._load_prompt("step6_srt.md")
+            prompt = prompt_template.replace("{recording_script}", recording.to_json())
+
             response = self.gemini_client.models.generate_content(
                 model=self.gemini_model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    temperature=0.7,
-                    top_p=0.9,
+                    temperature=0.3,
                     max_output_tokens=8192,
-                    response_mime_type="application/json",
                 )
             )
-            
-            script_json = self._parse_json_response(response.text)
-            
-            # Save script
-            output_path = self.scripts_dir / "01.narration_raw.json"
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(script_json, f, indent=2, ensure_ascii=False)
-            
-            self.log(f"[+] Narration script generated: {output_path}", log_callback)
-            self.log(f"    Sections: {len(script_json)}", log_callback)
-            
+
+            srt_content = self._clean_srt(response.text)
+
+            # Save to file
+            output_path = self.subtitles_dir / "ko.srt"
+            output_path.write_text(srt_content, encoding="utf-8")
+
+            self.log(f"[+] SRT complete: {output_path}", log_callback)
+
+            # Count subtitles
+            subtitle_count = len([l for l in srt_content.split('\n') if l.strip().isdigit()])
+            self.log(f"    Subtitle entries: {subtitle_count}", log_callback)
+
             return output_path
-            
+
         except Exception as e:
-            self.log(f"[!] Narration generation failed: {e}", log_callback)
+            self.log(f"[!] SRT generation failed: {e}", log_callback)
             raise
-    
-    # ========== Step 3-5: Script Improvement (3 Steps) ==========
-    
-    async def improve_script_step1(
+
+    # ========== Full Pipeline ==========
+
+    async def run(
         self,
-        script_path: Path | None = None,
-        log_callback: typing.Callable[[str], None] | None = None
-    ) -> Path:
+        topic: str,
+        context: str = "",
+        target_duration_minutes: int = 12,
+        log_callback: Callable[[str], None] | None = None
+    ) -> dict[str, Path]:
+        """전체 6단계 파이프라인 실행
+
+        Args:
+            topic: 스토리 주제
+            context: 추가 컨텍스트
+            target_duration_minutes: 목표 영상 길이 (분)
+            log_callback: 로그 콜백
+
+        Returns:
+            각 단계별 출력 파일 경로
         """
-        Step 3: Improve script using Gemini (Focus: Clarity, Flow, Engagement).
-        """
-        self.current_step = 3
-        self.log("[-] Step 3/7: Improving script (Gemini - Clarity & Flow)...", log_callback)
-        
-        return await self._improve_script_generic(
-            step_name="step1",
-            model=self.gemini_model,
-            client="gemini",
-            script_path=script_path,
-            output_filename="02.narration_improved_gemini.json",
-            log_callback=log_callback
-        )
-    
-    async def improve_script_step2(
-        self,
-        script_path: Path | None = None,
-        log_callback: typing.Callable[[str], None] | None = None
-    ) -> Path:
-        """
-        Step 4: Improve script using DeepSeek Reasoner (Focus: Logical Consistency).
-        """
-        self.current_step = 4
-        self.log("[-] Step 4/7: Improving script (DeepSeek - Logical Reasoning)...", log_callback)
-        
-        return await self._improve_script_generic(
-            step_name="step2",
-            model=self.deepseek_model,
-            client="deepseek",
-            script_path=script_path,
-            output_filename="03.narration_improved_deepseek.json",
-            log_callback=log_callback
-        )
-    
-    async def improve_script_step3(
-        self,
-        script_path: Path | None = None,
-        log_callback: typing.Callable[[str], None] | None = None
-    ) -> Path:
-        """
-        Step 5: Improve script using Qwen (Focus: Final Polish).
-        """
-        self.current_step = 5
-        self.log("[-] Step 5/7: Improving script (Qwen - Final Polish)...", log_callback)
-        
-        return await self._improve_script_generic(
-            step_name="step3",
-            model=self.qwen_model,
-            client="qwen",
-            script_path=script_path,
-            output_filename="04.narration_final.json",
-            log_callback=log_callback
-        )
-    
-    async def _improve_script_generic(
-        self,
-        step_name: str,
-        model: str,
-        client: str,
-        script_path: Path | None = None,
-        output_filename: str = "",
-        log_callback: typing.Callable[[str], None] | None = None
-    ) -> Path:
-        """Generic script improvement method for different models"""
-        
+        self.log("=" * 60, log_callback)
+        self.log(f"🎬 Story Script Pipeline (6-Step Architecture)", log_callback)
+        self.log(f"   Topic: {topic}", log_callback)
+        self.log(f"   Target: {target_duration_minutes} minutes", log_callback)
+        self.log("=" * 60, log_callback)
+
+        results = {}
+
         try:
-            # Load script
-            script_path = script_path or (self.scripts_dir / "01.narration_raw.json")
-            if not script_path.exists():
-                # Try previous step's output
-                prev_files = sorted(self.scripts_dir.glob("*.json"))
-                if len(prev_files) > 0:
-                    script_path = prev_files[-1]
-                else:
-                    raise FileNotFoundError(f"Script file not found: {script_path}")
-            
-            with open(script_path, "r", encoding="utf-8") as f:
-                script_json = json.load(f)
-            
-            # Load prompt
-            prompt_template = self._load_prompt(f"improve_script_{step_name}.md")
-            prompt = prompt_template.replace("{script_json}", json.dumps(script_json, ensure_ascii=False, indent=2))
-            
-            # Call appropriate API
-            if client == "gemini":
-                improved_json = await self._call_gemini_for_improvement(prompt, model)
-            elif client == "deepseek":
-                improved_json = await self._call_deepseek_for_improvement(prompt, model)
-            elif client == "qwen":
-                improved_json = await self._call_qwen_for_improvement(prompt, model)
-            else:
-                raise ValueError(f"Unknown client: {client}")
-            
-            # Save improved script
-            output_path = self.scripts_dir / output_filename
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(improved_json, f, indent=2, ensure_ascii=False)
-            
-            self.log(f"[+] Script improved ({client}): {output_path}", log_callback)
-            
-            return output_path
-            
+            # Step 1: Research
+            research = await self.step1_research(topic, context, log_callback)
+            results["research"] = self.scripts_dir / "01_research_packet.md"
+            await asyncio.sleep(1)
+
+            # Step 2: Structure
+            structure = await self.step2_structure(research, target_duration_minutes, log_callback)
+            results["structure"] = self.scripts_dir / "02_scene_structure.json"
+            await asyncio.sleep(1)
+
+            # Step 3: Writing
+            script = await self.step3_writing(structure, log_callback)
+            results["draft"] = self.scripts_dir / "03_narration_draft.json"
+            await asyncio.sleep(1)
+
+            # Step 4: Review
+            reviewed = await self.step4_review(script, log_callback)
+            results["reviewed"] = self.scripts_dir / "04_narration_reviewed.json"
+            await asyncio.sleep(1)
+
+            # Step 5: Formatting
+            recording = await self.step5_formatting(reviewed, log_callback)
+            results["recording"] = self.scripts_dir / "05_recording_script.json"
+            await asyncio.sleep(1)
+
+            # Step 6: SRT
+            srt_path = await self.step6_srt(recording, log_callback)
+            results["srt"] = srt_path
+
+            self.log("=" * 60, log_callback)
+            self.log("✅ Pipeline Complete!", log_callback)
+            self.log("=" * 60, log_callback)
+
+            return results
+
         except Exception as e:
-            self.log(f"[!] Script improvement ({client}) failed: {e}", log_callback)
+            self.log(f"[!] Pipeline failed at step {self.current_step}: {e}", log_callback)
             raise
-    
-    async def _call_gemini_for_improvement(self, prompt: str, model: str) -> list[dict]:
-        """Call Gemini API for script improvement"""
+
+    # ========== Backward Compatible Methods ==========
+
+    async def run_full_pipeline(
+        self,
+        topic: str,
+        context: str = "",
+        log_callback: Callable[[str], None] | None = None
+    ) -> dict[str, Path]:
+        """Backward compatible alias for run()"""
+        return await self.run(topic, context, 12, log_callback)
+
+    # ========== API Helpers ==========
+
+    async def _call_gemini_json(self, prompt: str) -> dict:
+        """Call Gemini API for JSON response"""
         response = self.gemini_client.models.generate_content(
-            model=model,
+            model=self.gemini_model,
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.5,
@@ -337,69 +477,44 @@ class StoryToScriptGenerator:
             )
         )
         return self._parse_json_response(response.text)
-    
-    async def _call_deepseek_for_improvement(self, prompt: str, model: str) -> list[dict]:
-        """Call DeepSeek API for script improvement"""
-        if not self.deepseek_api_key:
-            self.log("[!] DeepSeek API key not found, skipping DeepSeek improvement...", None)
-            # Return current script unchanged
-            prev_files = sorted(self.scripts_dir.glob("*.json"))
-            if prev_files:
-                with open(prev_files[-1], "r", encoding="utf-8") as f:
-                    return json.load(f)
-            raise ValueError("DeepSeek API key not found and no previous script available")
-        
+
+    async def _call_deepseek_json(self, prompt: str) -> dict:
+        """Call DeepSeek API for JSON response"""
         url = "https://api.deepseek.com/chat/completions"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.deepseek_api_key}"
         }
         payload = {
-            "model": model,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
+            "model": self.deepseek_model,
+            "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.5,
             "max_tokens": 8000,
             "response_format": {"type": "json_object"}
         }
-        
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, headers=headers) as response:
+            async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=180)) as response:
                 if response.status != 200:
                     error_text = await response.text()
                     raise Exception(f"DeepSeek API error: {response.status} - {error_text}")
-                
+
                 result = await response.json()
                 content = result["choices"][0]["message"]["content"]
                 return self._parse_json_response(content)
-    
-    async def _call_qwen_for_improvement(self, prompt: str, model: str) -> list[dict]:
-        """Call Qwen (DashScope) API for script improvement"""
-        if not self.dashscope_api_key:
-            self.log("[!] DashScope API key not found, skipping Qwen improvement...", None)
-            # Return current script unchanged
-            prev_files = sorted(self.scripts_dir.glob("*.json"))
-            if prev_files:
-                with open(prev_files[-1], "r", encoding="utf-8") as f:
-                    return json.load(f)
-            raise ValueError("DashScope API key not found and no previous script available")
 
-        # Using DashScope OpenAI-compatible API
-        # Try international endpoint first, fallback to China endpoint
+    async def _call_qwen_json(self, prompt: str) -> dict:
+        """Call Qwen (DashScope) API for JSON response"""
         url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
-        
-        # Use qwen3.5-plus model (latest)
-        actual_model = "qwen3.5-plus" if model == "qwen-plus" else model
-        
+
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.dashscope_api_key}"
         }
         payload = {
-            "model": actual_model,
+            "model": self.qwen_model,
             "messages": [
-                {"role": "system", "content": "You are a professional script editor. Output ONLY valid JSON."},
+                {"role": "system", "content": "You are a professional script writer. Output ONLY valid JSON."},
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.5,
@@ -411,9 +526,8 @@ class StoryToScriptGenerator:
             try:
                 async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=120)) as response:
                     if response.status != 200:
-                        # Try fallback to China endpoint
+                        # Fallback to China endpoint
                         url_cn = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-                        self.log(f"[!] International endpoint failed, trying China endpoint...", None)
                         async with session.post(url_cn, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=120)) as response_cn:
                             if response_cn.status != 200:
                                 error_text = await response_cn.text()
@@ -421,141 +535,19 @@ class StoryToScriptGenerator:
                             result = await response_cn.json()
                     else:
                         result = await response.json()
-                    
+
                     content = result["choices"][0]["message"]["content"]
                     return self._parse_json_response(content)
             except aiohttp.ClientError as e:
                 raise Exception(f"Qwen API connection error: {str(e)}")
-    
-    # ========== Step 6: Subtitle Generation ==========
-    
-    async def generate_subtitle(
-        self,
-        script_path: Path | None = None,
-        log_callback: typing.Callable[[str], None] | None = None
-    ) -> Path:
-        """
-        Step 6: Generate SRT subtitle file from final script.
-        """
-        self.current_step = 6
-        self.log("[-] Step 6/7: Generating subtitle file (ko.srt)...", log_callback)
-        
-        try:
-            # Load final script
-            script_path = script_path or (self.scripts_dir / "04.narration_final.json")
-            if not script_path.exists():
-                # Try to find the latest script
-                prev_files = sorted(self.scripts_dir.glob("*.json"))
-                if prev_files:
-                    script_path = prev_files[-1]
-                else:
-                    raise FileNotFoundError("No script file found")
-            
-            with open(script_path, "r", encoding="utf-8") as f:
-                script_json = json.load(f)
-            
-            # Load prompt
-            prompt_template = self._load_prompt("generate_subtitle.md")
-            prompt = prompt_template.replace("{script_json}", json.dumps(script_json, ensure_ascii=False, indent=2))
-            
-            # Generate SRT using Gemini
-            response = self.gemini_client.models.generate_content(
-                model=self.gemini_model,
-                contents=prompt,
-            )
-            
-            srt_content = response.text.strip()
-            
-            # Clean up if wrapped in code blocks
-            if srt_content.startswith("```"):
-                srt_content = srt_content.split("```", 1)[1]
-                if srt_content.startswith("srt"):
-                    srt_content = srt_content[3:]
-                srt_content = srt_content.split("```")[0].strip()
-            
-            # Save subtitle
-            output_path = self.subtitles_dir / "ko.srt"
-            output_path.write_text(srt_content, encoding="utf-8")
-            
-            self.log(f"[+] Subtitle generated: {output_path}", log_callback)
-            
-            # Count subtitles
-            subtitle_count = len([l for l in srt_content.split('\n') if l.strip().isdigit()])
-            self.log(f"    Subtitle entries: {subtitle_count}", log_callback)
-            
-            return output_path
-            
-        except Exception as e:
-            self.log(f"[!] Subtitle generation failed: {e}", log_callback)
-            raise
-    
-    # ========== Full Pipeline ==========
-    
-    async def run_full_pipeline(
-        self,
-        topic: str,
-        context: str = "",
-        log_callback: typing.Callable[[str], None] | None = None
-    ) -> dict[str, Path]:
-        """
-        Run the complete story-to-script pipeline.
-        
-        Args:
-            topic: Story title or topic
-            context: Additional context (optional)
-            log_callback: Optional callback for logging
-            
-        Returns:
-            Dictionary with paths to all generated files
-        """
-        self.log("=" * 60, log_callback)
-        self.log(f"🎬 Starting Story-to-Script Pipeline", log_callback)
-        self.log(f"   Topic: {topic}", log_callback)
-        self.log("=" * 60, log_callback)
-        
-        results = {}
-        
-        try:
-            # Step 1: Generate content
-            results["content"] = await self.generate_content(topic, context, log_callback)
-            await asyncio.sleep(1)  # Rate limiting
-            
-            # Step 2: Generate narration script
-            results["narration_raw"] = await self.generate_narration_script(log_callback=log_callback)
-            await asyncio.sleep(1)
-            
-            # Step 3: Improve with Gemini
-            results["improved_gemini"] = await self.improve_script_step1(log_callback=log_callback)
-            await asyncio.sleep(1)
-            
-            # Step 4: Improve with DeepSeek
-            results["improved_deepseek"] = await self.improve_script_step2(log_callback=log_callback)
-            await asyncio.sleep(1)
-            
-            # Step 5: Improve with Qwen
-            results["improved_qwen"] = await self.improve_script_step3(log_callback=log_callback)
-            await asyncio.sleep(1)
-            
-            # Step 6: Generate subtitle
-            results["subtitle"] = await self.generate_subtitle(log_callback=log_callback)
-            
-            self.log("=" * 60, log_callback)
-            self.log("✅ Pipeline Complete!", log_callback)
-            self.log("=" * 60, log_callback)
-            
-            return results
-            
-        except Exception as e:
-            self.log(f"[!] Pipeline failed at step {self.current_step}: {e}", log_callback)
-            raise
-    
+
     # ========== Utility Methods ==========
-    
-    def _parse_json_response(self, text: str) -> list[dict]:
+
+    def _parse_json_response(self, text: str) -> dict:
         """Parse JSON from model response"""
         try:
             clean = text.strip()
-            
+
             # Remove markdown code blocks
             if clean.startswith("```json"):
                 clean = clean[7:]
@@ -563,10 +555,35 @@ class StoryToScriptGenerator:
                 clean = clean[3:]
             if clean.endswith("```"):
                 clean = clean[:-3]
-            
+
             clean = clean.strip()
             return json.loads(clean)
         except json.JSONDecodeError as e:
             print(f"[!] JSON Parse Error: {e}")
-            print(f"    Raw text: {text[:200]}...")
+            print(f"    Raw text: {text[:500]}...")
             raise
+
+    def _clean_markdown(self, text: str) -> str:
+        """Clean markdown response"""
+        clean = text.strip()
+        if clean.startswith("```markdown"):
+            clean = clean[11:]
+        if clean.startswith("```"):
+            clean = clean[3:]
+        if clean.endswith("```"):
+            clean = clean[:-3]
+        return clean.strip()
+
+    def _clean_srt(self, text: str) -> str:
+        """Clean SRT response"""
+        clean = text.strip()
+        if clean.startswith("```"):
+            clean = clean.split("```", 1)[1]
+            if clean.startswith("srt"):
+                clean = clean[3:]
+            clean = clean.split("```")[0]
+        return clean.strip()
+
+
+# Backward compatibility alias
+StoryToScriptGenerator = StoryScriptPipeline

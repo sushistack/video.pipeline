@@ -152,7 +152,7 @@ def footer() -> rx.Component:
                 
                 # Bottom Bar
                 rx.hstack(
-                    rx.text("© 2024 Video Pipeline Inc.", size="1", color="var(--gray-8)"),
+                    rx.text("© 2026 Video Pipeline Inc.", size="1", color="var(--gray-8)"),
                     rx.spacer(),
                     rx.hstack(
                         footer_link("Privacy", "#"),
