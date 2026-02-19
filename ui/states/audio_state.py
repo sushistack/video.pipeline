@@ -32,19 +32,12 @@ class AudioState(rx.State):
     selected_project: str = ""
 
     # Provider selection
-    available_providers: list[str] = ["Qwen3-TTS", "GPT-SoVITS"]
+    available_providers: list[str] = ["Qwen3-TTS"]
     selected_provider: str = "Qwen3-TTS"
 
     # Model selection (dynamic based on provider)
     model_versions: list[str] = ["Base", "CustomVoice", "VoiceDesign"]
     selected_model: str = "CustomVoice"  # Default to CustomVoice for preset speakers
-
-    # GPT-SoVITS Model Mappings (Relative to pretrained_models)
-    MODEL_MAPPINGS = {
-        "V4": {"gpt": "s1v3.ckpt", "sovits": "gsv-v4-pretrained/s2Gv4.pth"},
-        "V2Pro": {"gpt": "s1v3.ckpt", "sovits": "v2Pro/s2Gv2Pro.pth"},
-        "V2ProPlus": {"gpt": "s1v3.ckpt", "sovits": "v2Pro/s2Gv2ProPlus.pth"},
-    }
 
     # Qwen3-TTS Model Mappings
     QWEN3_MODEL_MAPPINGS = {
@@ -230,10 +223,7 @@ class AudioState(rx.State):
         """Set TTS provider and update available models"""
         self.selected_provider = value
         # Update model versions based on provider
-        if value == "GPT-SoVITS":
-            self.model_versions = ["V2Pro", "V2ProPlus", "V4"]
-            self.selected_model = "V2ProPlus"
-        elif value == "Qwen3-TTS":
+        if value == "Qwen3-TTS":
             self.model_versions = ["Base", "CustomVoice", "VoiceDesign"]
             self.selected_model = "CustomVoice"  # Default to CustomVoice for preset speakers
 
@@ -268,19 +258,14 @@ class AudioState(rx.State):
             self.speed_factor = float(value[0])
 
     @rx.var
-    def is_gpt_sovits(self) -> bool:
-        """Check if GPT-SoVITS is selected"""
-        return self.selected_provider == "GPT-SoVITS"
-
-    @rx.var
     def is_qwen3_tts(self) -> bool:
         """Check if Qwen3-TTS is selected"""
         return self.selected_provider == "Qwen3-TTS"
 
     @rx.var
     def show_model_version(self) -> bool:
-        """Show model version selector only for GPT-SoVITS"""
-        return self.selected_provider == "GPT-SoVITS"
+        """Show model version selector"""
+        return False  # Qwen3-TTS uses unified model selection
 
     @rx.var
     def show_preset_speaker(self) -> bool:
@@ -316,30 +301,6 @@ class AudioState(rx.State):
         if self.gen_ko:
             langs.append("ko")
         return langs
-
-    @rx.var
-    def gpt_status(self) -> dict[str, str | bool]:
-        """Check GPT model status"""
-        rel_path = self.MODEL_MAPPINGS.get(self.selected_model, {}).get("gpt", "")
-        if not rel_path:
-            return {"exists": False, "name": "Configuration Error"}
-
-        full_path = (
-            PARENT_DIR / "external/GPT-SoVITS/GPT_SoVITS/pretrained_models" / rel_path
-        )
-        return {"exists": full_path.exists(), "name": rel_path}
-
-    @rx.var
-    def sovits_status(self) -> dict[str, str | bool]:
-        """Check SoVITS model status"""
-        rel_path = self.MODEL_MAPPINGS.get(self.selected_model, {}).get("sovits", "")
-        if not rel_path:
-            return {"exists": False, "name": "Configuration Error"}
-
-        full_path = (
-            PARENT_DIR / "external/GPT-SoVITS/GPT_SoVITS/pretrained_models" / rel_path
-        )
-        return {"exists": full_path.exists(), "name": rel_path}
 
     def on_load(self):
         """Called when page loads"""
@@ -459,10 +420,7 @@ class AudioState(rx.State):
             audio_generator = GenAudio(base_dir=PARENT_DIR)
 
             # Get provider type
-            if self.selected_provider == "GPT-SoVITS":
-                provider_type = TTSProviderType.GPT_SOVITS
-            else:
-                provider_type = TTSProviderType.QWEN3_TTS
+            provider_type = TTSProviderType.QWEN3_TTS
 
             provider = audio_generator.get_provider(provider_type)
 
@@ -476,17 +434,6 @@ class AudioState(rx.State):
             if model is None:
                 yield rx.toast.error(f"Model {self.selected_model} not found!")
                 return
-
-            # For GPT-SoVITS, check model files exist
-            if provider_type == TTSProviderType.GPT_SOVITS:
-                gpt_status = self.gpt_status
-                sovits_status = self.sovits_status
-
-                if not gpt_status["exists"] or not sovits_status["exists"]:
-                    yield rx.toast.error(
-                        "Invalid model configuration! Check model paths."
-                    )
-                    return
 
             output_root = PARENT_DIR / "workspace" / self.selected_project
             audio_output_dir = output_root / "audios"
@@ -597,10 +544,7 @@ class AudioState(rx.State):
                             candidate = vf
                             break
 
-                    if (
-                        provider_type == TTSProviderType.QWEN3_TTS
-                        and voice_name in qwen3_presets
-                    ):
+                    if voice_name in qwen3_presets:
                         # 2. Specific Preset Speaker (Priority 2)
                         use_preset = True
                         voice_id = voice_name
@@ -619,17 +563,8 @@ class AudioState(rx.State):
 
                         # Ensure Ref Text
                         ref_text = self._ensure_ref_text(ref_audio_path, ref_lang)
-                        if not ref_text and provider_type == TTSProviderType.GPT_SOVITS:
-                            self.log(
-                                f"[!] Missing ref text for {voice_name}. Skipping line."
-                            )
-                            processed_lines += 1
-                            continue
 
-                    elif (
-                        provider_type == TTSProviderType.QWEN3_TTS
-                        and self.use_preset_speaker
-                    ):
+                    elif self.use_preset_speaker:
                         # 3. Global Preset Fallback (Priority 3)
                         use_preset = True
                         voice_id = self.selected_preset_speaker

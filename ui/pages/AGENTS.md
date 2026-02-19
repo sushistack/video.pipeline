@@ -14,7 +14,7 @@
 | `extract.py` | 자막 추출 - 오디오에서 STT로 자막 생성 |
 | `review.py` | 자막 편집 - 다국어 자막 검토 및 수정 |
 | `scenario.py` | 시나리오 생성 - XML 스크립트 생성 |
-| `audio.py` | TTS 생성 - GPT-SoVITS 음성 합성 |
+| `audio.py` | TTS 생성 - Qwen3-TTS 음성 합성 |
 | `subtitle.py` | 자막 미리보기 - 싱크 확인 및 조정 |
 | `project.py` | 프로젝트 생성 - CapCut 내보내기 |
 

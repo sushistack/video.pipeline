@@ -1,7 +1,6 @@
-"""TTS Provider abstraction layer for multiple TTS engines."""
+"""TTS Provider abstraction layer for Qwen3-TTS."""
 
 from .base import TTSProvider, TTSConfig, VoiceConfig, ModelConfig, TTSProviderType
-from .gpt_sovits import GPTSoVITSProvider
 from .qwen3_tts import Qwen3TTSProvider
 
 __all__ = [
@@ -10,6 +9,5 @@ __all__ = [
     "VoiceConfig",
     "ModelConfig",
     "TTSProviderType",
-    "GPTSoVITSProvider",
     "Qwen3TTSProvider",
 ]

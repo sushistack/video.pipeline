@@ -29,7 +29,7 @@ def page() -> rx.Component:
             [
                 page_header(
                     "🎙️ Text-to-Speech Generation",
-                    "Generate audio with GPT-SoVITS or Qwen3-TTS",
+                    "Generate audio with Qwen3-TTS",
                 ),
             # Project Selection
             project_selector(
@@ -68,48 +68,11 @@ def page() -> rx.Component:
                                 width="250px",
                             ),
                             # Model description for Qwen3-TTS
-                            rx.cond(
-                                AudioState.is_qwen3_tts,
-                                rx.text(
-                                    AudioState.current_model_description,
-                                    size="1",
-                                    color="gray",
-                                    font_style="italic",
-                                ),
-                            ),
-                            # Validation Status for GPT-SoVITS
-                            rx.cond(
-                                AudioState.is_gpt_sovits,
-                                rx.vstack(
-                                    rx.hstack(
-                                        rx.cond(
-                                            AudioState.gpt_status["exists"],
-                                            rx.icon("check", color="green", size=16),
-                                            rx.icon("x", color="red", size=16),
-                                        ),
-                                        rx.text(
-                                            AudioState.gpt_status["name"],
-                                            size="1",
-                                            color="gray",
-                                        ),
-                                        align="center",
-                                    ),
-                                    rx.hstack(
-                                        rx.cond(
-                                            AudioState.sovits_status["exists"],
-                                            rx.icon("check", color="green", size=16),
-                                            rx.icon("x", color="red", size=16),
-                                        ),
-                                        rx.text(
-                                            AudioState.sovits_status["name"],
-                                            size="1",
-                                            color="gray",
-                                        ),
-                                        align="center",
-                                    ),
-                                    spacing="1",
-                                    padding_top="2",
-                                ),
+                            rx.text(
+                                AudioState.current_model_description,
+                                size="1",
+                                color="gray",
+                                font_style="italic",
                             ),
                             align="start",
                         ),

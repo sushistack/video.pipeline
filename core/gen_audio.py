@@ -1,4 +1,4 @@
-"""Audio generation with multiple TTS provider support."""
+"""Audio generation with Qwen3-TTS provider support."""
 
 import asyncio
 import sys
@@ -11,16 +11,14 @@ from core.tts import (
     VoiceConfig,
     ModelConfig,
     TTSProviderType,
-    GPTSoVITSProvider,
     Qwen3TTSProvider,
 )
 
 
 class GenAudio:
-    """Audio generation orchestrator with multi-provider support.
+    """Audio generation orchestrator with Qwen3-TTS support.
 
     Supports:
-    - GPT-SoVITS: Voice cloning via subprocess CLI
     - Qwen3-TTS: Preset speakers and voice cloning via Python API
     """
 
@@ -31,9 +29,7 @@ class GenAudio:
     def get_provider(self, provider_type: TTSProviderType) -> TTSProvider:
         """Get or create a TTS provider instance."""
         if provider_type not in self._providers:
-            if provider_type == TTSProviderType.GPT_SOVITS:
-                self._providers[provider_type] = GPTSoVITSProvider(self.base_dir)
-            elif provider_type == TTSProviderType.QWEN3_TTS:
+            if provider_type == TTSProviderType.QWEN3_TTS:
                 self._providers[provider_type] = Qwen3TTSProvider(self.base_dir)
             else:
                 raise ValueError(f"Unknown provider type: {provider_type}")
@@ -43,11 +39,6 @@ class GenAudio:
     def get_available_providers() -> list[dict[str, str]]:
         """Return list of available TTS providers."""
         return [
-            {
-                "type": TTSProviderType.GPT_SOVITS.value,
-                "name": "GPT-SoVITS",
-                "description": "Voice cloning TTS with high quality",
-            },
             {
                 "type": TTSProviderType.QWEN3_TTS.value,
                 "name": "Qwen3-TTS",
@@ -74,63 +65,6 @@ class GenAudio:
         provider = self.get_provider(provider_type)
 
         async for log_line in provider.generate(config, model):
-            yield log_line
-
-    # Legacy method for backward compatibility with GPT-SoVITS
-    async def async_generate_voice(
-        self,
-        gpt_model_path: Path,
-        sovits_model_path: Path,
-        ref_audio_path: Path,
-        ref_text: str,
-        ref_language: str,
-        target_text: str,
-        target_language: str,
-        output_path: Path,
-        speed_factor: float = 1.0,
-    ) -> typing.AsyncGenerator[str, None]:
-        """Legacy GPT-SoVITS generation method for backward compatibility.
-
-        This method maintains the old API for existing code.
-        New code should use generate_voice() instead.
-        """
-        provider = self.get_provider(TTSProviderType.GPT_SOVITS)
-
-        # Find matching model config by paths
-        model = None
-        for m in provider.get_available_models():
-            gpt_path, sovits_path = provider.get_model_paths(m)
-            if gpt_path == gpt_model_path and sovits_path == sovits_model_path:
-                model = m
-                break
-
-        if model is None:
-            # Create ad-hoc model config
-            model = ModelConfig(
-                name="custom",
-                display_name="Custom Model",
-                model_paths={
-                    "gpt": str(gpt_model_path.relative_to(provider.pretrained_models_dir)),
-                    "sovits": str(sovits_model_path.relative_to(provider.pretrained_models_dir)),
-                },
-            )
-
-        voice_config = VoiceConfig(
-            voice_id=ref_audio_path.stem,
-            ref_audio_path=ref_audio_path,
-            ref_text=ref_text,
-            ref_language=ref_language,
-        )
-
-        tts_config = TTSConfig(
-            text=target_text,
-            language=target_language,
-            output_path=output_path,
-            voice=voice_config,
-            speed_factor=speed_factor,
-        )
-
-        async for log_line in provider.generate(tts_config, model):
             yield log_line
 
     async def remove_silence(self, file_path: Path) -> typing.AsyncGenerator[str, None]:
@@ -173,13 +107,13 @@ class GenAudio:
         try:
             import shutil
             import os
-            
+
             # Get the venv bin directory path
             venv_bin = os.path.dirname(os.path.dirname(sys.executable))
             if os.name != "nt":  # Not Windows
                 venv_bin = os.path.join(venv_bin, "bin")
             ffmpeg_normalize_path = os.path.join(venv_bin, "ffmpeg-normalize")
-            
+
             # Check if ffmpeg-normalize exists in venv
             if os.path.exists(ffmpeg_normalize_path):
                 ffmpeg_normalize_cmd = ffmpeg_normalize_path

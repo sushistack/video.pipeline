@@ -9,21 +9,19 @@ from enum import Enum
 
 class TTSProviderType(str, Enum):
     """Supported TTS provider types."""
-    GPT_SOVITS = "gpt_sovits"
     QWEN3_TTS = "qwen3_tts"
 
 
 @dataclass
 class VoiceConfig:
     """Configuration for voice/speaker settings."""
-    # For GPT-SoVITS: reference audio path
-    # For Qwen3-TTS: can be preset speaker name OR reference audio path
+    # Can be preset speaker name OR reference audio path
     voice_id: str
 
-    # Reference audio path (required for GPT-SoVITS, optional for Qwen3-TTS)
+    # Reference audio path (optional for voice cloning)
     ref_audio_path: Optional[Path] = None
 
-    # Reference text (required for GPT-SoVITS voice cloning)
+    # Reference text (optional for voice cloning)
     ref_text: Optional[str] = None
 
     # Reference language code (ja, en, ko, zh)
@@ -68,7 +66,7 @@ class ModelConfig:
 class TTSProvider(ABC):
     """Abstract base class for TTS providers.
 
-    All TTS engines (GPT-SoVITS, Qwen3-TTS, etc.) should implement this interface.
+    All TTS engines should implement this interface.
     """
 
     def __init__(self, base_dir: Path):

@@ -1,6 +1,6 @@
-# GPT-SoVITS Video Pipeline
+# Video Pipeline - Qwen3-TTS
 
-GPT-SoVITS를 활용한 고성능 TTS(Text-to-Speech) 및 보이스 클로닝 웹 애플리케이션입니다.
+Qwen3-TTS를 활용한 고성능 TTS(Text-to-Speech) 및 보이스 클로닝 웹 애플리케이션입니다.
 
 ## 📋 Prerequisites
 
@@ -10,26 +10,25 @@ GPT-SoVITS를 활용한 고성능 TTS(Text-to-Speech) 및 보이스 클로닝 �
 
 ## 🚀 Setup
 
-### 1. Clone the repository and initialize submodules
+### 1. Clone the repository
 
 ```bash
 git clone <repo-url>
 cd video.pipeline
-git submodule update --init --recursive
 ```
 
 ### 2. Create and activate virtual environment
 
 **Windows:**
 ```bash
-py -3.12 -m venv venv
-.\venv\Scripts\activate
+py -3.12 -m venv .venv
+.\.venv\Scripts\activate
 ```
 
 **Linux/Mac:**
 ```bash
-python3.12 -m venv venv
-source venv/bin/activate
+python3.12 -m venv .venv
+source .venv/bin/activate
 ```
 
 ### 3. Install dependencies
@@ -50,10 +49,10 @@ The application will start on `http://localhost:3000`
 
 ### Using the TTS Generator
 
-1. **Upload Reference Audio**: Click "파일 선택" to upload a reference audio file (.wav, .mp3, or .flac)
-2. **Enter Text**: Type the text you want to synthesize in the text area
-3. **Generate**: Click "오디오 생성" to start the generation process
-4. **Listen & Download**: Once complete, you can play the audio or download it
+1. **Select Project**: Choose a project with scenario files
+2. **Configure TTS**: Select model and language options
+3. **Generate**: Click "Generate Audio Tracks" to start generation
+4. **Listen & Download**: Once complete, you can play the audio
 
 ## 📁 Project Structure
 
@@ -61,24 +60,19 @@ The application will start on `http://localhost:3000`
 video.pipeline/
 ├── core/                   # Core business logic
 │   ├── __init__.py
-│   ├── wrapper.py          # GPT-SoVITS wrapper interface
-│   ├── models.py           # Pydantic data models
-│   ├── utils.py            # Utility functions
-│   └── exceptions.py       # Custom exceptions
+│   ├── gen_audio.py        # Audio generation orchestrator
+│   ├── gen_caption.py      # Caption generation
+│   └── tts/                # TTS providers
+│       ├── base.py         # Abstract base class
+│       └── qwen3_tts.py    # Qwen3-TTS implementation
 ├── ui/                     # Reflex UI components
-│   ├── __init__.py
-│   ├── state.py            # Reflex State management
-│   └── pages/
-│       └── index.py        # Main page
-├── external/
-│   └── GPT-SoVITS/         # Git submodule
+│   ├── states/             # State management
+│   ├── components/         # Reusable UI components
+│   └── pages/              # Page definitions
 ├── assets/                 # Static files
-│   ├── uploaded/           # Uploaded reference audio
-│   └── outputs/            # Generated audio files
+│   └── audios/             # Reference audio files
+├── workspace/              # Project workspaces
 ├── tests/                  # Unit tests
-│   ├── test_core.py
-│   └── test_basic.py
-├── video_pipeline.py       # Main application entry point
 ├── rxconfig.py             # Reflex configuration
 ├── requirements.txt        # Python dependencies
 └── README.md
@@ -92,24 +86,12 @@ video.pipeline/
 pytest tests/
 ```
 
-### Run basic test script
-
-```bash
-python tests/test_basic.py
-```
-
 ## 🛠️ Development
 
 ### Check Python version
 
 ```bash
 python --version  # Should show Python 3.12.x
-```
-
-### Verify submodule
-
-```bash
-git submodule status
 ```
 
 ### Update dependencies
@@ -120,17 +102,11 @@ pip install -r requirements.txt --upgrade
 
 ## 📝 Notes
 
-- The current implementation uses placeholder inference logic. Actual GPT-SoVITS integration needs to be completed.
-- GPU acceleration is automatically detected and used if available.
-- All generated audio files are saved in `assets/outputs/`
+- Qwen3-TTS supports both preset speakers and voice cloning
+- GPU acceleration is automatically detected and used if available
+- All generated audio files are saved in `workspace/<project>/audios/`
 
 ## 🔧 Troubleshooting
-
-### Submodule not found
-
-```bash
-git submodule update --init --recursive
-```
 
 ### GPU out of memory
 
@@ -138,7 +114,7 @@ The system will automatically fall back to CPU mode if GPU memory is insufficien
 
 ### Permission errors
 
-Make sure you have write permissions for the `assets/` directory.
+Make sure you have write permissions for the `workspace/` directory.
 
 ## 📄 License
 

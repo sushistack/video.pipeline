@@ -31,12 +31,12 @@ def page() -> rx.Component:
             ),
             _feature_card(
                 "🎙️ Audio",
-                "GPT-SoVITS TTS generation",
+                "Qwen3-TTS generation",
                 "/audio",
                 "purple"
             ),
             _feature_card(
-                "🎨 Image Prompter",
+                "🎨 Prompter",
                 "AI image prompt generation",
                 "/image-prompter",
                 "pink"
