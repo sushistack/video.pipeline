@@ -106,7 +106,7 @@ def story_script_tab() -> rx.Component:
                     rx.cond(
                         StoryScriptState.is_running,
                         rx.spinner(size="3", color_scheme="blue"),
-                        rx.icon("check-circle", color="green", size=20)
+                        rx.icon("circle-check", color="green", size=20)
                     ),
                     rx.text(StoryScriptState.status_text, weight="bold"),
                     align_items="center",

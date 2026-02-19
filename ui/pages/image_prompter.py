@@ -263,7 +263,7 @@ def page() -> rx.Component:
                     rx.cond(
                         ImagePrompterState.is_generating,
                         rx.spinner(size="3", color_scheme="gray"),
-                        rx.icon("check-circle", color="green", size=20)
+                        rx.icon("circle-check", color="green", size=20)
                     ),
                     rx.text(ImagePrompterState.status_text, weight="bold"),
                     align_items="center",

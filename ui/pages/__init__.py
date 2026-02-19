@@ -1,12 +1,15 @@
 """UI pages package - exports all page functions"""
-from . import index, audio, scenario, subtitle, extract, review, project
+from . import index, audio, scenario, subtitle, extract, review, project, image_prompter, image_preprocessor, scene_detector
 
 __all__ = [
     "index",
-    "audio", 
+    "audio",
     "scenario",
     "subtitle",
     "extract",
     "review",
     "project",
+    "image_prompter",
+    "image_preprocessor",
+    "scene_detector",
 ]
