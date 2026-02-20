@@ -15,7 +15,37 @@ UI_DIR = Path(__file__).parent.parent
 if str(UI_DIR) not in sys.path:
     sys.path.insert(0, str(UI_DIR))
 
+from pydantic import BaseModel
 from core.gen_image_prompt import ImagePromptGenerator
+
+
+class ShotBreakdown(BaseModel):
+    camera_type: str = ""
+    subject: str = ""
+    lighting: str = ""
+    mood: str = ""
+    motion: str = ""
+
+
+class ImagePromptResult(BaseModel):
+    prompt: str = ""
+    negative_prompt: str = ""
+    style_tags: list[str] = []
+
+
+class ShotWithPrompt(BaseModel):
+    shot: ShotBreakdown = ShotBreakdown()
+    image_prompt: ImagePromptResult = ImagePromptResult()
+
+
+class ScenePromptData(BaseModel):
+    section_title: str = ""
+    section_type: str = ""
+    estimated_duration: int = 30
+    narration_text: str = ""
+    negative_prompt: str = ""
+    continuity_notes: str = ""
+    all_shots: list[ShotWithPrompt] = []
 
 
 class ImagePrompterState(rx.State):
@@ -35,7 +65,7 @@ class ImagePrompterState(rx.State):
     generation_logs: list[str] = []
 
     # Generated prompts
-    image_prompts: list[dict] = []
+    image_prompts: list[ScenePromptData] = []
     prompts_file_path: str = ""
 
     # Content info
@@ -65,10 +95,6 @@ class ImagePrompterState(rx.State):
         return f"Generating prompt {self.current_section}/{self.total_sections}"
 
     # Setters
-    def set_selected_project(self, value: str):
-        """Set selected project"""
-        self.selected_project = value
-        self.extract_content_title()
 
     def log(self, message: str):
         """Add log message"""
@@ -96,8 +122,8 @@ class ImagePrompterState(rx.State):
             projects = []
             for project_dir in workspace_dir.iterdir():
                 if project_dir.is_dir() and not project_dir.name.startswith("."):
-                    # Check if it has scripts directory with narration file
-                    script_file = project_dir / "scripts" / "04.narration_final.json"
+                    # Check if it has 02_scene_structure.json (new pipeline input)
+                    script_file = project_dir / "scripts" / "02_scene_structure.json"
                     if script_file.exists():
                         projects.append(project_dir.name)
 
@@ -136,10 +162,9 @@ class ImagePrompterState(rx.State):
         """Set selected project"""
         self.selected_project = value
         self.extract_content_title()
-        self.extract_content_title()
 
     async def generate_prompts(self):
-        """Generate image prompts for selected project"""
+        """Generate image prompts for selected project using 2-step shot breakdown pipeline"""
         if not self.can_generate:
             yield rx.toast.error("Please select a project first!")
             return
@@ -155,123 +180,118 @@ class ImagePrompterState(rx.State):
 
         try:
             self.log("=" * 60)
-            self.log(f"🎨 Starting Image Prompt Generation")
+            self.log(f"🎨 Starting Image Prompt Generation (2-Step Pipeline)")
             self.log(f"📁 Project: {self.selected_project}")
             self.log("=" * 60)
             yield
 
-            # Initialize generator
             workspace_dir = PARENT_DIR / "workspace"
             generator = ImagePromptGenerator(workspace_dir=workspace_dir)
 
-            # Define log callback
             def log_callback(message: str):
                 self.log_with_callback(message)
 
-            # Load script first to get section count
-            script_path = workspace_dir / self.selected_project / "scripts" / "04.narration_final.json"
-            if not script_path.exists():
-                self.log(f"❌ Script not found: {script_path}")
-                yield rx.toast.error("Script file not found!")
+            # Load scene structure
+            scene_path = workspace_dir / self.selected_project / "scripts" / "02_scene_structure.json"
+            if not scene_path.exists():
+                self.log(f"❌ Scene structure not found: {scene_path}")
+                yield rx.toast.error("Scene structure file not found!")
                 return
 
-            with open(script_path, "r", encoding="utf-8") as f:
-                script_data = json.load(f)
+            with open(scene_path, "r", encoding="utf-8") as f:
+                scene_structure = json.load(f)
 
-            self.total_sections = len(script_data)
-            self.log(f"📄 Found {self.total_sections} sections in script")
+            scenes = scene_structure.get("scenes", [])
+            self.total_sections = len(scenes)
+            self.log(f"📄 Found {self.total_sections} scenes in scene structure")
             yield
 
-            # Generate prompts using the generator method with progress tracking
-            image_prompts = []
-            previous_context = ""
-            
-            for idx, section in enumerate(script_data):
+            # Generate prompts scene by scene with progress tracking
+            image_prompts_typed: list[ScenePromptData] = []
+            image_prompts_raw: list[dict] = []
+            previous_last_shot = None
+
+            for idx, scene in enumerate(scenes):
                 self.current_section = idx + 1
                 yield  # Update progress UI
-                
-                self.log(f"[-] Generating prompt for section {idx + 1}/{self.total_sections}: {section.get('title', 'Unknown')}")
+
+                self.log(f"[-] Scene {idx + 1}/{self.total_sections}: {scene.get('title', 'Unknown')}")
                 yield
 
-                # Generate image prompt
-                prompt_data = await generator._generate_section_prompt(
-                    section=section,
-                    section_index=idx,
-                    total_sections=self.total_sections,
-                    previous_context=previous_context,
-                    log_callback=log_callback
+                # Run 3-step pipeline for this scene
+                scene_result = await generator.generate_scene_prompts(
+                    scene=scene,
+                    previous_last_shot=previous_last_shot,
+                    log_callback=log_callback,
                 )
                 yield
 
-                # Generate video prompt
-                self.log(f"    [-] Generating video prompt...")
-                yield
-                video_prompt = await generator._generate_video_prompt(
-                    section=section,
-                    image_prompt_data=prompt_data,
-                    section_index=idx,
-                    total_sections=self.total_sections,
-                    previous_context=previous_context,
-                    log_callback=log_callback
+                shots = scene_result.get("shots", [])
+
+                # Build typed objects for state (rx.Base for Reflex foreach support)
+                typed_shots = [
+                    ShotWithPrompt(
+                        shot=ShotBreakdown(
+                            camera_type=s.get("shot", {}).get("camera_type", ""),
+                            subject=s.get("shot", {}).get("subject", ""),
+                            lighting=s.get("shot", {}).get("lighting", ""),
+                            mood=s.get("shot", {}).get("mood", ""),
+                            motion=s.get("shot", {}).get("motion", ""),
+                        ),
+                        image_prompt=ImagePromptResult(
+                            prompt=s.get("image_prompt", {}).get("prompt", ""),
+                            negative_prompt=s.get("image_prompt", {}).get("negative_prompt", ""),
+                            style_tags=s.get("image_prompt", {}).get("style_tags", []),
+                        ),
+                    )
+                    for s in shots
+                ]
+                continuity = f"{scene_result['shots_count']} shots: " + ", ".join(
+                    s["shot"].get("camera_type", "") for s in shots
                 )
-                prompt_data["video_prompt"] = video_prompt
-                yield
-
-                # Generate multi-angle camera prompt for subject focus
-                self.log(f"    [-] Generating multi-angle camera prompt (subject)...")
-                yield
-                multi_angle_subject = await generator._generate_multi_angle_camera_prompt(
-                    section=section,
-                    image_prompt_data=prompt_data,
-                    section_index=idx,
-                    total_sections=self.total_sections,
-                    prompt_type="subject",
-                    log_callback=log_callback
+                scene_prompt = ScenePromptData(
+                    section_title=scene_result["scene_title"],
+                    section_type=scene_result["emotional_beat"],
+                    estimated_duration=int(scene.get("duration_seconds", 30)),
+                    narration_text=scene_result["synopsis"],
+                    negative_prompt=typed_shots[0].image_prompt.negative_prompt if typed_shots else "",
+                    continuity_notes=continuity,
+                    all_shots=typed_shots,
                 )
-                prompt_data["multi_angle_camera_prompt_subject"] = multi_angle_subject
+                image_prompts_typed.append(scene_prompt)
+
+                # Build raw dict for JSON file saving
+                prompt_data_raw = {
+                    "section_title": scene_result["scene_title"],
+                    "section_type": scene_result["emotional_beat"],
+                    "estimated_duration": scene.get("duration_seconds", 30),
+                    "narration_text": scene_result["synopsis"],
+                    "image_prompt": shots[0]["image_prompt"].get("prompt", "") if shots else "",
+                    "image_prompt_2": shots[1]["image_prompt"].get("prompt", "") if len(shots) > 1 else (shots[0]["image_prompt"].get("prompt", "") if shots else ""),
+                    "negative_prompt": shots[0]["image_prompt"].get("negative_prompt", "") if shots else "",
+                    "continuity_notes": continuity,
+                    "all_shots": shots,
+                }
+                image_prompts_raw.append(prompt_data_raw)
+
+                previous_last_shot = scene_result.get("last_shot")
+                await asyncio.sleep(0.3)  # Rate limiting
                 yield
 
-                # Generate multi-angle camera prompt for environment focus
-                self.log(f"    [-] Generating multi-angle camera prompt (environment)...")
-                yield
-                multi_angle_env = await generator._generate_multi_angle_camera_prompt(
-                    section=section,
-                    image_prompt_data=prompt_data,
-                    section_index=idx,
-                    total_sections=self.total_sections,
-                    prompt_type="environment",
-                    log_callback=log_callback
-                )
-                prompt_data["multi_angle_camera_prompt_environment"] = multi_angle_env
-                yield
+            # Store typed results in state
+            self.image_prompts = image_prompts_typed
+            output_path = workspace_dir / self.selected_project / "scripts" / "05_image_prompts.json"
+            self.prompts_file_path = str(output_path)
 
-                image_prompts.append(prompt_data)
-
-                # Update context for next section
-                previous_context = generator._build_context(section, prompt_data)
-                yield
-
-                await asyncio.sleep(0.5)  # Rate limiting
-
-            # Store results
-            self.image_prompts = image_prompts
-            self.prompts_file_path = str(workspace_dir / self.selected_project / "prompts" / "05.image_prompts.json")
-            
-            # Save files manually
-            output_path = Path(self.prompts_file_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Save JSON
             with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(image_prompts, f, indent=2, ensure_ascii=False)
-            
-            # Save text files
-            self._save_prompt_text_files(output_path, image_prompts)
+                json.dump(image_prompts_raw, f, indent=2, ensure_ascii=False)
 
-            # Complete
+            self._save_prompt_text_files(output_path, image_prompts_raw)
+
             self.log("=" * 60)
             self.log("🎉 Image Prompt Generation Complete!")
-            self.log(f"📄 Generated {len(image_prompts)} prompts")
+            self.log(f"📄 Generated {len(image_prompts_typed)} scene prompts")
             self.log(f"💾 Saved to: {self.prompts_file_path}")
             self.log("=" * 60)
             yield rx.toast.success("Image Prompts Generated! 🚀")
@@ -331,8 +351,8 @@ class ImagePrompterState(rx.State):
         except Exception as e:
             self.log(f"    [!] Failed to save text files: {e}")
 
-    def get_prompt_preview(self, index: int) -> dict:
+    def get_prompt_preview(self, index: int) -> ScenePromptData | None:
         """Get preview of specific prompt"""
         if 0 <= index < len(self.image_prompts):
             return self.image_prompts[index]
-        return {}
+        return None

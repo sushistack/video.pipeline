@@ -7,110 +7,120 @@ UI_DIR = Path(__file__).parent.parent
 if str(UI_DIR) not in sys.path:
     sys.path.insert(0, str(UI_DIR))
 
-from states.image_prompter_state import ImagePrompterState
+from states.image_prompter_state import ImagePrompterState, ShotWithPrompt, ScenePromptData
 from components.layout import page_container, page_header
 from components.log_viewer import log_viewer
 from components.file_selector import project_selector
 
 
-def prompt_card(prompt_data: dict, index: int) -> rx.Component:
-    """Create a card for a single image prompt"""
+def shot_item(shot_data: ShotWithPrompt) -> rx.Component:
+    """Render a single shot breakdown + image prompt"""
+    return rx.vstack(
+        # Shot header badges
+        rx.hstack(
+            rx.badge(
+                rx.hstack(rx.icon("camera", size=12), shot_data.shot.camera_type, spacing="1"),
+                color_scheme="blue",
+                variant="soft",
+            ),
+            rx.badge(shot_data.shot.mood, color_scheme="amber", variant="soft"),
+            rx.badge(shot_data.shot.motion, color_scheme="gray", variant="outline"),
+            spacing="2",
+            flex_wrap="wrap",
+        ),
+        # Subject
+        rx.vstack(
+            rx.text("피사체 (Subject)", size="1", color_scheme="gray", weight="bold"),
+            rx.text(shot_data.shot.subject, size="2", line_height="1.6"),
+            spacing="1",
+            width="100%",
+        ),
+        # Lighting
+        rx.vstack(
+            rx.text("조명 (Lighting)", size="1", color_scheme="gray", weight="bold"),
+            rx.text(shot_data.shot.lighting, size="2"),
+            spacing="1",
+            width="100%",
+        ),
+        # Image prompt
+        rx.vstack(
+            rx.hstack(
+                rx.text("🎨 Image Prompt", weight="bold", size="2"),
+                rx.icon_button(
+                    rx.icon("copy", size=14),
+                    variant="ghost",
+                    size="1",
+                    color_scheme="gray",
+                    on_click=rx.set_clipboard(shot_data.image_prompt.prompt),
+                    tooltip="Copy image prompt",
+                ),
+                justify="between",
+                align_items="center",
+                width="100%",
+            ),
+            rx.text(
+                shot_data.image_prompt.prompt,
+                size="2",
+                color_scheme="gray",
+                line_height="1.8",
+            ),
+            width="100%",
+            spacing="2",
+            padding="12px",
+            background_color="rgba(35, 35, 35, 0.9)",
+            border_radius="8px",
+            border_left="4px solid var(--blue-7)",
+        ),
+        width="100%",
+        spacing="3",
+        padding="16px",
+        background_color="rgba(28, 28, 28, 0.8)",
+        border_radius="10px",
+        border="1px solid rgba(255, 255, 255, 0.06)",
+    )
 
-    def copy_prompt_with_metadata(prompt_field: str):
-        """Copy prompt with title and aspect ratio metadata"""
-        title = ImagePrompterState.content_title
-        prompt_text = prompt_data.get(prompt_field, "")
-        full_text = f"{prompt_text}\n\n[{title}]\nAspect Ratio: 16:9"
-        return rx.set_clipboard(full_text)
 
+def prompt_card(prompt_data: ScenePromptData, index: int) -> rx.Component:
+    """Create a scene card showing all shots with breakdown + image prompts"""
     return rx.accordion.item(
         header=rx.hstack(
             rx.badge(f"#{index + 1}", color_scheme="gray", variant="solid"),
-            rx.text(prompt_data.get("section_title", "Unknown"), weight="bold"),
+            rx.text(prompt_data.section_title, weight="bold"),
             rx.badge(
-                prompt_data.get("section_type", "unknown"),
-                color_scheme="gray",
+                prompt_data.section_type,
+                color_scheme="amber",
                 variant="soft",
             ),
             rx.badge(
-                f"{prompt_data.get('estimated_duration', 0)} sec",
+                prompt_data.estimated_duration, " sec",
                 color_scheme="gray",
                 variant="outline",
+            ),
+            rx.badge(
+                prompt_data.continuity_notes,
+                color_scheme="blue",
+                variant="soft",
+                size="1",
             ),
             align_items="center",
             spacing="3",
             width="100%",
+            flex_wrap="wrap",
         ),
         content=rx.vstack(
-            # Image Prompt 1
-            rx.vstack(
-                rx.hstack(
-                    rx.text("🎨 Image Prompt 1 (Subject Focus)", weight="bold", size="2"),
-                    rx.icon_button(
-                        rx.icon("copy", size=16),
-                        variant="ghost",
-                        size="1",
-                        color_scheme="gray",
-                        on_click=copy_prompt_with_metadata("image_prompt"),
-                        tooltip="Copy with title & aspect ratio",
-                    ),
-                    justify="between",
-                    align_items="center",
-                    width="100%",
-                ),
-                rx.text(
-                    prompt_data.get("image_prompt", ""),
-                    size="2",
-                    line_height="1.8",
-                    color_scheme="gray",
-                ),
-                width="100%",
-                spacing="2",
-                padding="16px",
-                background_color="rgba(35, 35, 35, 0.9)",
-                border_radius="8px",
-                border_left="4px solid var(--gray-7)",
+            # All shots (new pipeline: 2-4 shots per scene)
+            rx.foreach(
+                prompt_data.all_shots,
+                shot_item,
             ),
-
-            # Image Prompt 2
-            rx.vstack(
-                rx.hstack(
-                    rx.text("🎨 Image Prompt 2 (Environment Focus)", weight="bold", size="2"),
-                    rx.icon_button(
-                        rx.icon("copy", size=16),
-                        variant="ghost",
-                        size="1",
-                        color_scheme="gray",
-                        on_click=copy_prompt_with_metadata("image_prompt_2"),
-                        tooltip="Copy with title & aspect ratio",
-                    ),
-                    justify="between",
-                    align_items="center",
-                    width="100%",
-                ),
-                rx.text(
-                    prompt_data.get("image_prompt_2", ""),
-                    size="2",
-                    line_height="1.8",
-                    color_scheme="gray",
-                ),
-                width="100%",
-                spacing="2",
-                padding="16px",
-                background_color="rgba(35, 35, 35, 0.9)",
-                border_radius="8px",
-                border_left="4px solid var(--gray-6)",
-            ),
-
-            # Multi-Angle Camera Prompt 1 (Subject Focus)
 
             # Negative Prompt
             rx.cond(
-                prompt_data.get("negative_prompt", "") != "",
+                prompt_data.negative_prompt != "",
                 rx.vstack(
                     rx.text("🚫 Negative Prompt", weight="bold", size="2"),
                     rx.text(
-                        prompt_data.get("negative_prompt", ""),
+                        prompt_data.negative_prompt,
                         size="2",
                         color_scheme="gray",
                     ),
@@ -123,86 +133,18 @@ def prompt_card(prompt_data: dict, index: int) -> rx.Component:
                 ),
             ),
 
-            # Settings Grid
-            rx.grid(
-                rx.vstack(
-                    rx.text("Aspect Ratio", size="1", color_scheme="gray"),
-                    rx.text(prompt_data.get("suggested_aspect_ratio", "N/A"), weight="bold"),
-                    align_items="start",
-                    padding="16px",
-                    background_color="rgba(40, 40, 40, 0.6)",
-                    border_radius="8px",
-                ),
-                rx.vstack(
-                    rx.text("Camera", size="1", color_scheme="gray"),
-                    rx.text(prompt_data.get("suggested_camera", "N/A"), weight="bold"),
-                    align_items="start",
-                    padding="16px",
-                    background_color="rgba(40, 40, 40, 0.6)",
-                    border_radius="8px",
-                ),
-                rx.vstack(
-                    rx.text("Lighting", size="1", color_scheme="gray"),
-                    rx.text(prompt_data.get("suggested_lighting", "N/A"), weight="bold"),
-                    align_items="start",
-                    padding="16px",
-                    background_color="rgba(40, 40, 40, 0.6)",
-                    border_radius="8px",
-                ),
-                columns="3",
-                spacing="3",
-                width="100%",
-                margin_top="12px",
-            ),
-
-            # Priority Elements (display as comma-separated text)
+            # Scene Synopsis
             rx.vstack(
-                rx.text("🎯 Priority Elements", weight="bold", size="2"),
+                rx.text("📜 Scene Synopsis", weight="bold", size="2"),
                 rx.text(
-                    rx.Var.create(prompt_data.get("priority_elements", [])).to(list).join(", "),
+                    prompt_data.narration_text,
                     size="2",
                     color_scheme="gray",
+                    line_height="1.6",
                 ),
                 width="100%",
                 spacing="2",
-                margin_top="12px",
-                padding="16px",
-                background_color="rgba(40, 40, 40, 0.6)",
-                border_radius="8px",
-            ),
-
-            # Continuity Notes
-            rx.cond(
-                prompt_data.get("continuity_notes", "") != "",
-                rx.vstack(
-                    rx.text("🔗 Continuity Notes", weight="bold", size="2"),
-                    rx.text(
-                        prompt_data.get("continuity_notes", ""),
-                        size="2",
-                        color_scheme="gray",
-                        font_style="italic",
-                    ),
-                    width="100%",
-                    spacing="2",
-                    margin_top="12px",
-                    padding="16px",
-                    background_color="rgba(40, 40, 40, 0.6)",
-                    border_radius="8px",
-                    border_left="3px solid var(--gray-6)",
-                ),
-            ),
-
-            # Narration Text
-            rx.vstack(
-                rx.text("📜 Narration", weight="bold", size="2"),
-                rx.text(
-                    prompt_data.get("narration_text", ""),
-                    size="2",
-                    color_scheme="gray",
-                ),
-                width="100%",
-                spacing="2",
-                margin_top="12px",
+                margin_top="8px",
                 padding="16px",
                 background_color="rgba(45, 45, 45, 0.7)",
                 border_radius="8px",
