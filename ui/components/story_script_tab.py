@@ -226,43 +226,149 @@ def story_script_tab() -> rx.Component:
             ),
         ),
         
-        # Script Preview
+        # Step-by-Step File Previews
         rx.cond(
-            StoryScriptState.script_sections.length() > 0,
+            StoryScriptState.current_step > 0,
             rx.vstack(
-                rx.heading("📜 Script Preview", size="5", margin_bottom="2"),
+                rx.heading("📄 Generated Files Preview", size="5", margin_bottom="2"),
                 
-                rx.accordion.root(
-                    rx.foreach(
-                        StoryScriptState.script_sections,
-                        lambda section: rx.accordion.item(
-                            header=rx.hstack(
-                                rx.badge(section["section"], color_scheme="blue", variant="soft"),
-                                rx.text(section["title"], weight="bold"),
-                                rx.badge(
-                                    section["estimated_duration"].to(str) + " sec",
-                                    color_scheme="gray",
-                                    variant="outline",
-                                ),
-                                align_items="center",
-                                spacing="3",
-                                width="100%",
-                            ),
-                            content=rx.text(
-                                section["content"],
-                                size="2",
-                                line_height="1.8",
-                            ),
-                            value=section["section"],
-                        ),
+                rx.tabs.root(
+                    rx.tabs.list(
+                        rx.tabs.trigger("1. Research", value="research"),
+                        rx.tabs.trigger("2. Structure", value="structure"),
+                        rx.tabs.trigger("3. Writing", value="writing"),
+                        rx.tabs.trigger("4. Review", value="review"),
+                        rx.tabs.trigger("5. SRT", value="srt"),
                     ),
-                    collapsible=True,
-                    type="multiple",
+                    
+                    # Research Tab - Markdown-like display
+                    rx.tabs.content(
+                        rx.scroll_area(
+                            rx.vstack(
+                                rx.foreach(
+                                    StoryScriptState.research_lines,
+                                    lambda line: rx.cond(
+                                        line.startswith("#"),
+                                        rx.heading(line, size="4", weight="bold", margin_bottom="1"),
+                                        rx.cond(
+                                            line.startswith("- ") | line.startswith("* "),
+                                            rx.box(line, margin_left="1em", margin_bottom="0.5em"),
+                                            rx.text(line, margin_bottom="0.5em", white_space="pre_wrap")
+                                        )
+                                    )
+                                ),
+                                width="100%",
+                                spacing="1",
+                            ),
+                            type="always",
+                            scrollbars="vertical",
+                            height="400px",
+                        ),
+                        value="research",
+                    ),
+                    
+                    # Structure Tab - JSON display
+                    rx.tabs.content(
+                        rx.scroll_area(
+                            rx.vstack(
+                                rx.foreach(
+                                    StoryScriptState.structure_lines,
+                                    lambda line: rx.text(
+                                        line,
+                                        white_space="pre",
+                                        font_size="xs",
+                                        font_family="monospace",
+                                        line_height="1.4",
+                                    )
+                                ),
+                                width="100%",
+                                spacing="0",
+                            ),
+                            type="always",
+                            scrollbars="vertical",
+                            height="400px",
+                        ),
+                        value="structure",
+                    ),
+                    
+                    # Writing Tab - JSON display
+                    rx.tabs.content(
+                        rx.scroll_area(
+                            rx.vstack(
+                                rx.foreach(
+                                    StoryScriptState.writing_lines,
+                                    lambda line: rx.text(
+                                        line,
+                                        white_space="pre",
+                                        font_size="xs",
+                                        font_family="monospace",
+                                        line_height="1.4",
+                                    )
+                                ),
+                                width="100%",
+                                spacing="0",
+                            ),
+                            type="always",
+                            scrollbars="vertical",
+                            height="400px",
+                        ),
+                        value="writing",
+                    ),
+                    
+                    # Review Tab - JSON display
+                    rx.tabs.content(
+                        rx.scroll_area(
+                            rx.vstack(
+                                rx.foreach(
+                                    StoryScriptState.review_lines,
+                                    lambda line: rx.text(
+                                        line,
+                                        white_space="pre",
+                                        font_size="xs",
+                                        font_family="monospace",
+                                        line_height="1.4",
+                                    )
+                                ),
+                                width="100%",
+                                spacing="0",
+                            ),
+                            type="always",
+                            scrollbars="vertical",
+                            height="400px",
+                        ),
+                        value="review",
+                    ),
+                    
+                    # SRT Tab - Preformatted text
+                    rx.tabs.content(
+                        rx.scroll_area(
+                            rx.vstack(
+                                rx.foreach(
+                                    StoryScriptState.srt_lines,
+                                    lambda line: rx.text(
+                                        line,
+                                        white_space="pre",
+                                        font_size="sm",
+                                        font_family="monospace",
+                                        margin_bottom="0.25em",
+                                    )
+                                ),
+                                width="100%",
+                                spacing="0",
+                            ),
+                            type="always",
+                            scrollbars="vertical",
+                            height="400px",
+                        ),
+                        value="srt",
+                    ),
+                    
+                    default_value="research",
                     width="100%",
                 ),
                 
                 width="100%",
-                max_width="800px",
+                max_width="900px",
                 spacing="3",
                 padding="20px",
                 background_color="rgba(255, 255, 255, 0.02)",
@@ -281,7 +387,7 @@ def story_script_tab() -> rx.Component:
         
         # Info
         rx.callout(
-            "ℹ️ The entire pipeline may take 3-5 minutes. The script is improved at each step, and a final subtitle file is generated.",
+            "ℹ️ The entire pipeline may take 3-5 minutes. The script is improved at each step (Research → Structure → Writing → Review), and a final subtitle file is generated.",
             color_scheme="gray",
         ),
 

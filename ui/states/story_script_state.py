@@ -33,7 +33,7 @@ class StoryScriptState(rx.State):
     # Pipeline status
     is_running: bool = False
     current_step: int = 0
-    total_steps: int = 7
+    total_steps: int = 5
     progress: float = 0.0
 
     # Logs
@@ -42,6 +42,7 @@ class StoryScriptState(rx.State):
     # Project info
     project_id: str = ""
     project_dir: str = ""
+    scripts_dir: str = ""
 
     # Generated files
     generated_content_path: str = ""
@@ -51,32 +52,76 @@ class StoryScriptState(rx.State):
     # Script content for preview
     current_script_content: str = ""
     script_sections: list[dict] = []
+    
+    # Step-by-step file previews
+    research_content: str = ""
+    structure_content: str = ""
+    writing_content: str = ""
+    review_content: str = ""
+    srt_content: str = ""
 
     # Computed properties
     @rx.var
     def can_start(self) -> bool:
         """Can start pipeline"""
         return bool(self.story_title.strip()) and not self.is_running
-    
+
     @rx.var
     def progress_percentage(self) -> int:
         """Progress percentage"""
         return int((self.current_step / self.total_steps) * 100)
-    
+
     @rx.var
     def status_text(self) -> str:
         """Current status text"""
+        if self.current_step == 5:
+            return "✅ Complete"
+
         step_names = {
             0: "Ready",
-            1: "Generating Content Research",
-            2: "Creating Narration Script",
-            3: "Improving with DeepSeek (Logic)",
-            4: "Improving with Qwen (Polish)",
-            5: "Improving with Gemini (Final)",
-            6: "Generating Subtitles",
-            7: "Complete"
+            1: "Step 1/5: Research",
+            2: "Step 2/5: Structure",
+            3: "Step 3/5: Writing",
+            4: "Step 4/5: Review",
         }
         return step_names.get(self.current_step, "Processing...")
+    
+    @rx.var
+    def structure_lines(self) -> list[str]:
+        """Format structure JSON for display"""
+        return self._format_json_lines(self.structure_content)
+    
+    @rx.var
+    def writing_lines(self) -> list[str]:
+        """Format writing JSON for display"""
+        return self._format_json_lines(self.writing_content)
+    
+    @rx.var
+    def review_lines(self) -> list[str]:
+        """Format review JSON for display"""
+        return self._format_json_lines(self.review_content)
+    
+    @rx.var
+    def srt_lines(self) -> list[str]:
+        """Format SRT content for display"""
+        return self.srt_content.split("\n") if self.srt_content else []
+    
+    @rx.var
+    def research_lines(self) -> list[str]:
+        """Get research content lines for display"""
+        return self.research_content.split("\n") if self.research_content else []
+    
+    def _format_json_lines(self, json_str: str) -> list[str]:
+        """Helper to format JSON with proper indentation"""
+        import json as json_module
+        try:
+            if not json_str:
+                return ["No content"]
+            data = json_module.loads(json_str)
+            formatted = json_module.dumps(data, indent=2, ensure_ascii=False)
+            return formatted.split("\n")
+        except:
+            return json_str.split("\n") if json_str else ["Invalid JSON"]
     
     # Setters
     def set_story_title(self, value: str):
@@ -151,6 +196,7 @@ class StoryScriptState(rx.State):
             # Store project info
             self.project_id = generator.project_id
             self.project_dir = str(generator.project_dir)
+            self.scripts_dir = str(generator.scripts_dir)
 
             # Override model if different from default
             generator.gemini_model = self.selected_gemini_model
@@ -158,76 +204,147 @@ class StoryScriptState(rx.State):
             # Define log callback
             def log_callback(message: str):
                 self.log(message)
-            
-            # Step 1: Generate content
+
+            scripts_path = Path(self.scripts_dir) if self.scripts_dir else Path(generator.scripts_dir)
+            subtitles_path = Path(generator.subtitles_dir)
+
+            # Step 1: Research
             self.current_step = 1
             yield
-            content_path = await generator.generate_content(
-                topic=self.story_title,
-                context=self.story_context,
-                log_callback=log_callback
-            )
-            self.generated_content_path = str(content_path)
-            self.log(f"✅ Content generated: {content_path.name}")
+            research_path = scripts_path / "01_research_packet.md"
+            if research_path.exists():
+                self.log(f"⏭️ Step 1/5: Research already exists, skipping...")
+                from core.models.script_models import ResearchPacket
+                research = ResearchPacket(
+                    topic=self.story_title,
+                    raw_content=research_path.read_text(encoding="utf-8")
+                )
+                self.research_content = research.raw_content
+            else:
+                research = await generator.step1_research(
+                    topic=self.story_title,
+                    context=self.story_context,
+                    log_callback=log_callback
+                )
+                self.research_content = research.raw_content
+                # Save research content for preview
+                with open(research_path, "w", encoding="utf-8") as f:
+                    f.write(research.raw_content)
+            self.generated_content_path = str(research_path)
+            self.log(f"✅ Step 1/5: Research complete")
             yield
             await asyncio.sleep(0.5)
-            
-            # Step 2: Generate narration script
+
+            # Step 2: Structure
             self.current_step = 2
             yield
-            narration_path = await generator.generate_narration_script(log_callback=log_callback)
-            self.generated_scripts.append(str(narration_path))
-            self.log(f"✅ Narration script generated: {narration_path.name}")
+            structure_path = scripts_path / "02_scene_structure.json"
+            if structure_path.exists():
+                self.log(f"⏭️ Step 2/5: Structure already exists, skipping...")
+                from core.models.script_models import SceneStructure
+                with open(structure_path, "r", encoding="utf-8") as f:
+                    structure = SceneStructure.from_dict(json.load(f))
+                self.structure_content = json.dumps(structure.to_dict(), indent=2, ensure_ascii=False)
+            else:
+                structure = await generator.step2_structure(
+                    research=research,
+                    target_duration_minutes=12,
+                    log_callback=log_callback
+                )
+                self.structure_content = structure.to_json()
+                # Save structure for preview
+                with open(structure_path, "w", encoding="utf-8") as f:
+                    json.dump(structure.to_dict(), f, indent=2, ensure_ascii=False)
+            self.generated_scripts.append(str(structure_path))
+            self.log(f"✅ Step 2/5: Structure complete")
             yield
             await asyncio.sleep(0.5)
-            
-            # Step 3: Improve with DeepSeek (Logic & Reasoning)
+
+            # Step 3: Writing
             self.current_step = 3
             yield
-            deepseek_path = await generator.improve_script_step2(log_callback=log_callback)
-            self.generated_scripts.append(str(deepseek_path))
-            self.log(f"✅ DeepSeek improvement complete (Logic): {deepseek_path.name}")
+            draft_path = scripts_path / "03_narration_draft.json"
+            if draft_path.exists():
+                self.log(f"⏭️ Step 3/5: Writing already exists, skipping...")
+                from core.models.script_models import NarrationScript
+                with open(draft_path, "r", encoding="utf-8") as f:
+                    script = NarrationScript.from_dict(json.load(f))
+                self.writing_content = json.dumps(script.to_dict(), indent=2, ensure_ascii=False)
+            else:
+                script = await generator.step3_writing(
+                    structure=structure,
+                    log_callback=log_callback
+                )
+                self.writing_content = script.to_json()
+                # Save draft for preview
+                with open(draft_path, "w", encoding="utf-8") as f:
+                    json.dump(script.to_dict(), f, indent=2, ensure_ascii=False)
+            self.generated_scripts.append(str(draft_path))
+            self.log(f"✅ Step 3/5: Writing complete")
             yield
             await asyncio.sleep(0.5)
 
-            # Step 4: Improve with Qwen (Polish & Tone)
+            # Step 4: Review
             self.current_step = 4
             yield
-            qwen_path = await generator.improve_script_step3(log_callback=log_callback)
-            self.generated_scripts.append(str(qwen_path))
-            self.log(f"✅ Qwen improvement complete (Polish): {qwen_path.name}")
+            reviewed_path = scripts_path / "04_narration_reviewed.json"
+            if reviewed_path.exists():
+                self.log(f"⏭️ Step 4/5: Review already exists, skipping...")
+                from core.models.script_models import NarrationScript
+                with open(reviewed_path, "r", encoding="utf-8") as f:
+                    reviewed = NarrationScript.from_dict(json.load(f))
+                self.review_content = json.dumps(reviewed.to_dict(), indent=2, ensure_ascii=False)
+            else:
+                reviewed = await generator.step4_review(
+                    script=script,
+                    log_callback=log_callback
+                )
+                self.review_content = json.dumps(reviewed.to_dict(), indent=2, ensure_ascii=False)
+                # Save reviewed script for preview
+                with open(reviewed_path, "w", encoding="utf-8") as f:
+                    json.dump(reviewed.to_dict(), f, indent=2, ensure_ascii=False)
+            self.generated_scripts.append(str(reviewed_path))
+            self.log(f"✅ Step 4/5: Review complete")
             yield
             await asyncio.sleep(0.5)
 
-            # Step 5: Improve with Gemini (Final Review)
+            # Step 5: SRT (directly from NarrationScript)
             self.current_step = 5
             yield
-            gemini_path = await generator.improve_script_step1(log_callback=log_callback)
-            self.generated_scripts.append(str(gemini_path))
-            self.log(f"✅ Gemini improvement complete (Final): {gemini_path.name}")
+            srt_path = subtitles_path / "ko.srt"
+            if srt_path.exists():
+                self.log(f"⏭️ Step 5/5: SRT already exists, skipping...")
+                self.srt_content = srt_path.read_text(encoding="utf-8")
+            else:
+                srt_path = await generator.step5_srt(
+                    script=reviewed,
+                    log_callback=log_callback
+                )
+                self.srt_content = srt_path.read_text(encoding="utf-8")
+            self.generated_subtitle_path = str(srt_path)
+            self.log(f"✅ Step 5/5: SRT complete")
+            yield
+            await asyncio.sleep(0.5)
 
             # Load final script for preview
             try:
-                with open(gemini_path, "r", encoding="utf-8") as f:
-                    final_script = json.load(f)
-                    self.script_sections = final_script
-                    self.current_script_content = json.dumps(final_script, indent=2, ensure_ascii=False)
+                final_script_path = reviewed_path
+                if final_script_path.exists():
+                    with open(final_script_path, "r", encoding="utf-8") as f:
+                        final_script = json.load(f)
+                        # Extract lines array if the data is wrapped in a dict
+                        if isinstance(final_script, dict) and 'lines' in final_script:
+                            self.script_sections = final_script['lines']
+                        else:
+                            self.script_sections = final_script
+                        # current_script_content is already set from review_content
+                        self.current_script_content = self.review_content
             except Exception as e:
                 self.log(f"[!] Warning: Could not load script preview: {e}")
-
-            yield
-            await asyncio.sleep(0.5)
-            
-            # Step 6: Generate subtitle
-            self.current_step = 6
-            yield
-            subtitle_path = await generator.generate_subtitle(log_callback=log_callback)
-            self.generated_subtitle_path = str(subtitle_path)
-            self.log(f"✅ Subtitle generated: {subtitle_path.name}")
             yield
             
             # Complete
-            self.current_step = 7
+            self.current_step = 5
             self.log("=" * 60)
             self.log("🎉 Pipeline Complete!")
             self.log(f"📁 Project ID: {self.project_id}")
@@ -255,18 +372,22 @@ class StoryScriptState(rx.State):
         """Load script preview from file"""
         if not self.generated_scripts:
             return
-        
+
         try:
             # Use specified index or last script
             idx = script_index if script_index >= 0 else len(self.generated_scripts) - 1
             if idx >= len(self.generated_scripts):
                 idx = len(self.generated_scripts) - 1
-            
+
             script_path = Path(self.generated_scripts[idx])
             if script_path.exists():
                 with open(script_path, "r", encoding="utf-8") as f:
                     script_data = json.load(f)
-                    self.script_sections = script_data
+                    # Extract lines array if the data is wrapped in a dict
+                    if isinstance(script_data, dict) and 'lines' in script_data:
+                        self.script_sections = script_data['lines']
+                    else:
+                        self.script_sections = script_data
                     self.current_script_content = json.dumps(script_data, indent=2, ensure_ascii=False)
                 self.log(f"📄 Loaded preview: {script_path.name}")
         except Exception as e:

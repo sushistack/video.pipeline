@@ -6,10 +6,10 @@ from ..components.layout import page_container, page_header
 def page() -> rx.Component:
     """Dashboard - Index Page"""
     return page_container([
-        page_header("🎞️ Video Pipeline UI", "Reflex-based interface with zero-lag editing"),
-        
+        page_header("🎞️ Video Pipeline UI"),
+
         rx.text("Select a tab to get started:", size="4", weight="bold"),
-        
+
         rx.grid(
             _feature_card(
                 "📺 Extract",
@@ -42,16 +42,16 @@ def page() -> rx.Component:
                 "pink"
             ),
             _feature_card(
-                "📝 Subtitle",
-                "Subtitle preview",
-                "/subtitle",
+                "🖼️ Preprocess",
+                "Image preprocessing",
+                "/image-preprocess",
                 "cyan"
             ),
             _feature_card(
-                "🎥 Project",
-                "CapCut project generation",
-                "/project",
-                "indigo"
+                "🎬 Scene",
+                "Scene detection",
+                "/scene-detect",
+                "teal"
             ),
             columns="3",
             spacing="4",

@@ -1,12 +1,11 @@
-"""Story-to-Script Generation Pipeline (6-Step Architecture)
+"""Story-to-Script Generation Pipeline (5-Step Architecture)
 
 Pipeline Flow:
 1. Research (Gemini) → 순수 자료 수집 (대본 X)
 2. Structure (DeepSeek) → 씬 뼈대 설계 (문장 X)
 3. Writing (Qwen) → 실제 대본 집필
 4. Review (Gemini) → 비평 + 부분 수정만
-5. Formatting → 녹음용 포맷 (JSON)
-6. SRT → TTS용 자막 파일
+5. SRT → TTS 용 자막 파일
 """
 
 import os
@@ -35,18 +34,15 @@ from core.models.script_models import (
     RecordingScript,
     RecordingInstruction,
 )
-
-
 class StoryScriptPipeline:
-    """6단계 스토리 스크립트 파이프라인
+    """5단계 스토리 스크립트 파이프라인
 
     각 단계는 명확히 다른 역할을 수행:
     - Step 1: 리서치 (자료 수집만, 대본 X)
     - Step 2: 구조 설계 (뼈대만, 문장 X)
     - Step 3: 대본 집필 (실제 문장 작성)
     - Step 4: 품질 검증 (부분 수정만, 전체 재작성 X)
-    - Step 5: 녹음 포맷팅 (메타데이터 추가)
-    - Step 6: SRT 생성 (자막 파일)
+    - Step 5: SRT 생성 (자막 파일)
     """
 
     def __init__(self, workspace_dir: Path | None = None, project_id: str | None = None):
@@ -81,7 +77,7 @@ class StoryScriptPipeline:
         self.gemini_client = genai.Client(api_key=self.gemini_api_key)
 
         # Model configurations
-        self.gemini_model = "gemini-2.5-flash-preview-05-20"
+        self.gemini_model = "gemini-3-pro-preview"
         self.deepseek_model = "deepseek-reasoner"
         self.qwen_model = "qwen3.5-plus"
 
@@ -90,7 +86,7 @@ class StoryScriptPipeline:
 
         # State
         self.current_step = 0
-        self.total_steps = 6
+        self.total_steps = 5
 
     def log(self, message: str, callback: Callable[[str], None] | None = None):
         """Log message with optional callback"""
@@ -120,7 +116,7 @@ class StoryScriptPipeline:
         출력: ResearchPacket (Markdown)
         """
         self.current_step = 1
-        self.log(f"[-] Step 1/6: Research - Collecting facts for '{topic}'...", log_callback)
+        self.log(f"[-] Step 1/5: Research - Collecting facts for '{topic}'...", log_callback)
 
         try:
             prompt_template = self._load_prompt("step1_research.md")
@@ -172,7 +168,7 @@ class StoryScriptPipeline:
         출력: SceneStructure (JSON)
         """
         self.current_step = 2
-        self.log("[-] Step 2/6: Structure - Designing scene skeleton...", log_callback)
+        self.log("[-] Step 2/5: Structure - Designing scene skeleton...", log_callback)
 
         try:
             prompt_template = self._load_prompt("step2_structure.md")
@@ -220,7 +216,7 @@ class StoryScriptPipeline:
         출력: NarrationScript (JSON)
         """
         self.current_step = 3
-        self.log("[-] Step 3/6: Writing - Drafting narration script...", log_callback)
+        self.log("[-] Step 3/5: Writing - Drafting narration script...", log_callback)
 
         try:
             prompt_template = self._load_prompt("step3_writing.md")
@@ -264,7 +260,7 @@ class StoryScriptPipeline:
         출력: NarrationScript (패치 적용됨)
         """
         self.current_step = 4
-        self.log("[-] Step 4/6: Review - Critiquing and patching...", log_callback)
+        self.log("[-] Step 4/5: Review - Critiquing and patching...", log_callback)
 
         try:
             prompt_template = self._load_prompt("step4_review.md")
@@ -298,90 +294,75 @@ class StoryScriptPipeline:
             self.log(f"[!] Review failed: {e}", log_callback)
             raise
 
-    # ========== Step 5: Formatting ==========
+    # ========== Step 5: SRT Generation ==========
 
-    async def step5_formatting(
+    async def step5_srt(
         self,
         script: NarrationScript,
         log_callback: Callable[[str], None] | None = None
-    ) -> RecordingScript:
-        """Step 5: 녹음용 포맷팅 - 메타데이터 추가
-
-        입력: NarrationScript
-        출력: RecordingScript (JSON with tone, pause, bgm, sfx, visual notes)
-        """
-        self.current_step = 5
-        self.log("[-] Step 5/6: Formatting - Adding recording metadata...", log_callback)
-
-        try:
-            prompt_template = self._load_prompt("step5_formatting.md")
-            prompt = prompt_template.replace("{script}", script.to_json())
-
-            format_json = await self._call_gemini_json(prompt)
-
-            # Parse RecordingScript
-            recording = RecordingScript.from_dict(format_json)
-            recording.topic = script.topic
-
-            # Save to file
-            output_path = self.scripts_dir / "05_recording_script.json"
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(recording.to_dict(), f, indent=2, ensure_ascii=False)
-
-            self.log(f"[+] Formatting complete: {output_path}", log_callback)
-            self.log(f"    Total duration: {recording.total_estimated_duration}s", log_callback)
-
-            return recording
-
-        except Exception as e:
-            self.log(f"[!] Formatting failed: {e}", log_callback)
-            raise
-
-    # ========== Step 6: SRT Generation ==========
-
-    async def step6_srt(
-        self,
-        recording: RecordingScript,
-        log_callback: Callable[[str], None] | None = None
     ) -> Path:
-        """Step 6: SRT 생성 - TTS용 자막 파일
+        """Step 5: SRT 생성 - TTS용 자막 파일
 
-        입력: RecordingScript
+        API 호출 없이 프로그래밍적으로 생성합니다.
+        입력: NarrationScript
         출력: ko.srt (SRT file)
         """
-        self.current_step = 6
-        self.log("[-] Step 6/6: SRT - Generating subtitle file...", log_callback)
+        self.current_step = 5
+        self.log("[-] Step 5/5: SRT - Generating subtitle file...", log_callback)
 
-        try:
-            prompt_template = self._load_prompt("step6_srt.md")
-            prompt = prompt_template.replace("{recording_script}", recording.to_json())
+        # Generate SRT programmatically from NarrationScript
+        srt_content = self._generate_srt_from_script(script)
 
-            response = self.gemini_client.models.generate_content(
-                model=self.gemini_model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.3,
-                    max_output_tokens=8192,
-                )
-            )
+        # Save to file
+        output_path = self.subtitles_dir / "ko.srt"
+        output_path.write_text(srt_content, encoding="utf-8")
 
-            srt_content = self._clean_srt(response.text)
+        self.log(f"[+] SRT complete: {output_path}", log_callback)
 
-            # Save to file
-            output_path = self.subtitles_dir / "ko.srt"
-            output_path.write_text(srt_content, encoding="utf-8")
+        # Count subtitles
+        subtitle_count = len([l for l in srt_content.split('\n') if l.strip().isdigit()])
+        self.log(f"    Subtitle entries: {subtitle_count}", log_callback)
 
-            self.log(f"[+] SRT complete: {output_path}", log_callback)
+        return output_path
 
-            # Count subtitles
-            subtitle_count = len([l for l in srt_content.split('\n') if l.strip().isdigit()])
-            self.log(f"    Subtitle entries: {subtitle_count}", log_callback)
+    def _generate_srt_from_script(self, script: NarrationScript) -> str:
+        """Generate SRT file from NarrationScript programmatically without API calls"""
+        srt_lines = []
+        current_time_ms = 0
 
-            return output_path
+        for i, line in enumerate(script.lines, 1):
+            # Calculate duration: ~5 seconds per line (adjust based on text length)
+            duration_ms = max(2000, min(5000, len(line.text) * 150))
 
-        except Exception as e:
-            self.log(f"[!] SRT generation failed: {e}", log_callback)
-            raise
+            # Start time
+            start_ms = current_time_ms
+
+            # End time
+            end_ms = start_ms + duration_ms
+
+            # Format timestamps
+            start_str = self._format_srt_time(start_ms)
+            end_str = self._format_srt_time(end_ms)
+
+            # SRT entry with speaker label
+            srt_lines.append(f"{i}")
+            srt_lines.append(f"{start_str} --> {end_str}")
+            srt_lines.append(f"[speaker]: {line.text}")
+            srt_lines.append("")
+
+            # Add pause after (default 0.3s for NarrationLine which doesn't have pause_after)
+            pause_ms = int(0.3 * 1000)
+            current_time_ms = end_ms + pause_ms
+
+        return "\n".join(srt_lines)
+
+    def _format_srt_time(self, ms: int) -> str:
+        """Convert milliseconds to SRT timestamp format (HH:MM:SS,mmm)"""
+        hours = ms // 3600000
+        minutes = (ms % 3600000) // 60000
+        seconds = (ms % 60000) // 1000
+        milliseconds = ms % 1000
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
 
     # ========== Full Pipeline ==========
 
@@ -392,7 +373,7 @@ class StoryScriptPipeline:
         target_duration_minutes: int = 12,
         log_callback: Callable[[str], None] | None = None
     ) -> dict[str, Path]:
-        """전체 6단계 파이프라인 실행
+        """전체 5단계 파이프라인 실행
 
         Args:
             topic: 스토리 주제
@@ -404,7 +385,7 @@ class StoryScriptPipeline:
             각 단계별 출력 파일 경로
         """
         self.log("=" * 60, log_callback)
-        self.log(f"🎬 Story Script Pipeline (6-Step Architecture)", log_callback)
+        self.log(f"🎬 Story Script Pipeline (5-Step Architecture)", log_callback)
         self.log(f"   Topic: {topic}", log_callback)
         self.log(f"   Target: {target_duration_minutes} minutes", log_callback)
         self.log("=" * 60, log_callback)
@@ -432,13 +413,8 @@ class StoryScriptPipeline:
             results["reviewed"] = self.scripts_dir / "04_narration_reviewed.json"
             await asyncio.sleep(1)
 
-            # Step 5: Formatting
-            recording = await self.step5_formatting(reviewed, log_callback)
-            results["recording"] = self.scripts_dir / "05_recording_script.json"
-            await asyncio.sleep(1)
-
-            # Step 6: SRT
-            srt_path = await self.step6_srt(recording, log_callback)
+            # Step 5: SRT
+            srt_path = await self.step5_srt(reviewed, log_callback)
             results["srt"] = srt_path
 
             self.log("=" * 60, log_callback)
@@ -557,10 +533,20 @@ class StoryScriptPipeline:
                 clean = clean[:-3]
 
             clean = clean.strip()
+            
+            # Fix common JSON issues
+            # Replace single quotes with double quotes (if not inside strings)
+            # Fix trailing commas
+            import re
+            # Remove trailing commas before } or ]
+            clean = re.sub(r',\s*([\]}])', r'\1', clean)
+            
             return json.loads(clean)
         except json.JSONDecodeError as e:
             print(f"[!] JSON Parse Error: {e}")
-            print(f"    Raw text: {text[:500]}...")
+            print(f"    Error at approximately character: {e.pos}")
+            print(f"    Raw text (first 1000 chars): {text[:1000]}...")
+            print(f"    Raw text (around error): {text[max(0, e.pos-100):e.pos+100] if e.pos else 'N/A'}...")
             raise
 
     def _clean_markdown(self, text: str) -> str:
@@ -583,7 +569,5 @@ class StoryScriptPipeline:
                 clean = clean[3:]
             clean = clean.split("```")[0]
         return clean.strip()
-
-
 # Backward compatibility alias
 StoryToScriptGenerator = StoryScriptPipeline
