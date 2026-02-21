@@ -45,7 +45,8 @@ class ScenePromptData(BaseModel):
     narration_text: str = ""
     negative_prompt: str = ""
     continuity_notes: str = ""
-    all_shots: list[ShotWithPrompt] = []
+    first_shot: ShotWithPrompt = ShotWithPrompt()
+    last_shot: ShotWithPrompt = ShotWithPrompt()
 
 
 class ImagePrompterState(rx.State):
@@ -133,6 +134,7 @@ class ImagePrompterState(rx.State):
             if self.available_projects and not self.selected_project:
                 self.selected_project = self.available_projects[0]
                 self.extract_content_title()
+                self.load_existing_prompts()
         else:
             self.available_projects = []
 
@@ -158,10 +160,75 @@ class ImagePrompterState(rx.State):
         else:
             self.content_title = ""
 
+    def load_existing_prompts(self):
+        """Load existing image prompts from workspace if available"""
+        if not self.selected_project:
+            return
+
+        prompts_file = PARENT_DIR / "workspace" / self.selected_project / "scripts" / "05_image_prompts.json"
+        if prompts_file.exists():
+            try:
+                with open(prompts_file, "r", encoding="utf-8") as f:
+                    prompts_data = json.load(f)
+
+                # Convert to typed objects for UI display
+                image_prompts_typed: list[ScenePromptData] = []
+                for prompt_data in prompts_data:
+                    first_raw = prompt_data.get("first_shot", {})
+                    last_raw = prompt_data.get("last_shot", {})
+
+                    def raw_to_typed_shot(s: dict) -> ShotWithPrompt:
+                        shot_data = s.get("shot", {})
+                        img_data = s.get("image_prompt", {})
+                        return ShotWithPrompt(
+                            shot=ShotBreakdown(
+                                camera_type=shot_data.get("camera_type", ""),
+                                subject=shot_data.get("subject", ""),
+                                lighting=shot_data.get("lighting", ""),
+                                mood=shot_data.get("mood", ""),
+                                motion=shot_data.get("motion", ""),
+                            ),
+                            image_prompt=ImagePromptResult(
+                                prompt=img_data.get("prompt", "") if isinstance(img_data, dict) else "",
+                                negative_prompt=img_data.get("negative_prompt", "") if isinstance(img_data, dict) else "",
+                                style_tags=img_data.get("style_tags", []) if isinstance(img_data, dict) else [],
+                            ),
+                        )
+
+                    typed_first = raw_to_typed_shot(first_raw)
+                    typed_last = raw_to_typed_shot(last_raw)
+
+                    scene_prompt = ScenePromptData(
+                        section_title=prompt_data.get("section_title", ""),
+                        section_type=prompt_data.get("section_type", ""),
+                        estimated_duration=prompt_data.get("estimated_duration", 30),
+                        narration_text=prompt_data.get("narration_text", ""),
+                        negative_prompt=prompt_data.get("negative_prompt", ""),
+                        continuity_notes=prompt_data.get("continuity_notes", ""),
+                        first_shot=typed_first,
+                        last_shot=typed_last,
+                    )
+                    image_prompts_typed.append(scene_prompt)
+
+                self.image_prompts = image_prompts_typed
+                self.prompts_file_path = str(prompts_file)
+                self.log(f"✅ Loaded {len(image_prompts_typed)} existing image prompts")
+                print(f"Loaded existing prompts: {len(image_prompts_typed)} scenes")
+
+            except Exception as e:
+                print(f"Failed to load existing prompts: {e}")
+                self.image_prompts = []
+                self.prompts_file_path = ""
+        else:
+            # No existing prompts file
+            self.image_prompts = []
+            self.prompts_file_path = ""
+
     def set_selected_project(self, value: str):
         """Set selected project"""
         self.selected_project = value
         self.extract_content_title()
+        self.load_existing_prompts()
 
     async def generate_prompts(self):
         """Generate image prompts for selected project using 2-step shot breakdown pipeline"""
@@ -226,51 +293,58 @@ class ImagePrompterState(rx.State):
                 )
                 yield
 
-                shots = scene_result.get("shots", [])
+                shots = [
+                    scene_result.get("first_shot", {}),
+                    scene_result.get("last_shot", {}),
+                ]
 
-                # Build typed objects for state (rx.Base for Reflex foreach support)
-                typed_shots = [
-                    ShotWithPrompt(
+                def _to_typed_shot(s: dict) -> ShotWithPrompt:
+                    shot_data = s.get("shot", {})
+                    img_data = s.get("image_prompt", {})
+                    return ShotWithPrompt(
                         shot=ShotBreakdown(
-                            camera_type=s.get("shot", {}).get("camera_type", ""),
-                            subject=s.get("shot", {}).get("subject", ""),
-                            lighting=s.get("shot", {}).get("lighting", ""),
-                            mood=s.get("shot", {}).get("mood", ""),
-                            motion=s.get("shot", {}).get("motion", ""),
+                            camera_type=shot_data.get("camera_type", ""),
+                            subject=shot_data.get("subject", ""),
+                            lighting=shot_data.get("lighting", ""),
+                            mood=shot_data.get("mood", ""),
+                            motion=shot_data.get("motion", ""),
                         ),
                         image_prompt=ImagePromptResult(
-                            prompt=s.get("image_prompt", {}).get("prompt", ""),
-                            negative_prompt=s.get("image_prompt", {}).get("negative_prompt", ""),
-                            style_tags=s.get("image_prompt", {}).get("style_tags", []),
+                            prompt=img_data.get("prompt", ""),
+                            negative_prompt=img_data.get("negative_prompt", ""),
+                            style_tags=img_data.get("style_tags", []),
                         ),
                     )
-                    for s in shots
-                ]
-                continuity = f"{scene_result['shots_count']} shots: " + ", ".join(
-                    s["shot"].get("camera_type", "") for s in shots
-                )
+
+                typed_first = _to_typed_shot(scene_result.get("first_shot", {}))
+                typed_last = _to_typed_shot(scene_result.get("last_shot", {}))
+
                 scene_prompt = ScenePromptData(
                     section_title=scene_result["scene_title"],
                     section_type=scene_result["emotional_beat"],
                     estimated_duration=int(scene.get("duration_seconds", 30)),
                     narration_text=scene_result["synopsis"],
-                    negative_prompt=typed_shots[0].image_prompt.negative_prompt if typed_shots else "",
-                    continuity_notes=continuity,
-                    all_shots=typed_shots,
+                    negative_prompt=typed_first.image_prompt.negative_prompt,
+                    continuity_notes=f"Scene {scene_result['scene_number']}: opening \u2192 closing",
+                    first_shot=typed_first,
+                    last_shot=typed_last,
                 )
                 image_prompts_typed.append(scene_prompt)
 
                 # Build raw dict for JSON file saving
+                first_raw = scene_result.get("first_shot", {})
+                last_raw = scene_result.get("last_shot", {})
                 prompt_data_raw = {
                     "section_title": scene_result["scene_title"],
                     "section_type": scene_result["emotional_beat"],
                     "estimated_duration": scene.get("duration_seconds", 30),
                     "narration_text": scene_result["synopsis"],
-                    "image_prompt": shots[0]["image_prompt"].get("prompt", "") if shots else "",
-                    "image_prompt_2": shots[1]["image_prompt"].get("prompt", "") if len(shots) > 1 else (shots[0]["image_prompt"].get("prompt", "") if shots else ""),
-                    "negative_prompt": shots[0]["image_prompt"].get("negative_prompt", "") if shots else "",
-                    "continuity_notes": continuity,
-                    "all_shots": shots,
+                    "image_prompt": first_raw.get("image_prompt", {}).get("prompt", ""),
+                    "image_prompt_2": last_raw.get("image_prompt", {}).get("prompt", ""),
+                    "negative_prompt": first_raw.get("image_prompt", {}).get("negative_prompt", ""),
+                    "continuity_notes": f"Scene {scene_result['scene_number']}: opening \u2192 closing",
+                    "first_shot": first_raw,
+                    "last_shot": last_raw,
                 }
                 image_prompts_raw.append(prompt_data_raw)
 

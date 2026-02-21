@@ -108,10 +108,30 @@ def prompt_card(prompt_data: ScenePromptData, index: int) -> rx.Component:
             flex_wrap="wrap",
         ),
         content=rx.vstack(
-            # All shots (new pipeline: 2-4 shots per scene)
-            rx.foreach(
-                prompt_data.all_shots,
-                shot_item,
+            # Opening Shot
+            rx.vstack(
+                rx.hstack(
+                    rx.icon("play", size=14, color="var(--green-9)"),
+                    rx.text("첫 번째 Shot (Opening)", weight="bold", size="2", color_scheme="green"),
+                    align_items="center",
+                    spacing="2",
+                ),
+                shot_item(prompt_data.first_shot),
+                width="100%",
+                spacing="2",
+            ),
+
+            # Closing Shot
+            rx.vstack(
+                rx.hstack(
+                    rx.icon("square", size=14, color="var(--blue-9)"),
+                    rx.text("마지막 Shot (Closing)", weight="bold", size="2", color_scheme="blue"),
+                    align_items="center",
+                    spacing="2",
+                ),
+                shot_item(prompt_data.last_shot),
+                width="100%",
+                spacing="2",
             ),
 
             # Negative Prompt
