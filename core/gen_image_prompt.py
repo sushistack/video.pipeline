@@ -128,7 +128,7 @@ class ImagePromptGenerator:
             else:
                 # Empty or invalid response - use fallback
                 self.log(f"    [!] Warning: API returned empty/invalid response, using fallback", log_callback)
-                fallback = {"prompt": f"Cinematic image for: {section_content[:100]}"}
+                fallback = {"prompt": f"Anime style image for: {section_content[:100]}"}
                 prompts = [fallback, fallback]
 
             # Add metadata for both prompts
@@ -141,11 +141,11 @@ class ImagePromptGenerator:
                 "image_prompt": prompts[0].get("prompt", "") if isinstance(prompts[0], dict) else str(prompts[0]) if prompts[0] else "",
                 "image_prompt_2": prompts[1].get("prompt", "") if isinstance(prompts[1], dict) else str(prompts[1]) if prompts[1] else "",
                 "negative_prompt": prompts[0].get("negative_prompt", "") if isinstance(prompts[0], dict) else "",
-                "style_reference": prompts[0].get("style_reference", "") if isinstance(prompts[0], dict) else "cinematic, photorealistic, 8k",
+                "style_reference": prompts[0].get("style_reference", "") if isinstance(prompts[0], dict) else "anime style, vibrant colors, cel shaded",
                 "continuity_notes": prompts[0].get("continuity_notes", "") if isinstance(prompts[0], dict) else "",
                 "suggested_aspect_ratio": prompts[0].get("aspect_ratio", "16:9") if isinstance(prompts[0], dict) else "16:9",
                 "suggested_camera": prompts[0].get("camera", "medium shot") if isinstance(prompts[0], dict) else "medium shot",
-                "suggested_lighting": prompts[0].get("lighting", "cinematic") if isinstance(prompts[0], dict) else "cinematic",
+                "suggested_lighting": prompts[0].get("lighting", "anime") if isinstance(prompts[0], dict) else "anime",
                 "priority_elements": prompts[0].get("priority_elements", []) if isinstance(prompts[0], dict) else [],
             }
 
@@ -156,7 +156,7 @@ class ImagePromptGenerator:
         except Exception as e:
             self.log(f"    [!] Failed to generate prompt: {e}", log_callback)
             # Return fallback prompt
-            fallback_prompt = f"High quality cinematic image related to: {section.get('content', '')[:200]}"
+            fallback_prompt = f"High quality anime style image related to: {section.get('content', '')[:200]}"
             return {
                 "section_index": section_index,
                 "section_title": section.get("title", "Unknown"),
@@ -165,12 +165,12 @@ class ImagePromptGenerator:
                 "narration_text": section.get("content", ""),
                 "image_prompt": fallback_prompt,
                 "image_prompt_2": fallback_prompt + " (alternative angle)",
-                "negative_prompt": "low quality, blurry, distorted, deformed, ugly, watermark, text",
-                "style_reference": "cinematic, photorealistic, 8k",
+                "negative_prompt": "photorealistic, realistic, 3d render, cgi, live action, text, watermark, blurry, low quality",
+                "style_reference": "anime style, vibrant colors, cel shaded",
                 "continuity_notes": "",
                 "suggested_aspect_ratio": "16:9",
                 "suggested_camera": "medium shot",
-                "suggested_lighting": "cinematic",
+                "suggested_lighting": "anime",
                 "priority_elements": [],
             }
     
@@ -419,36 +419,33 @@ Previous Section: {section.get('title', 'Unknown')}
             return {}
 
     # ─────────────────────────────────────────────────────────────────────────
-    # First + Last Shot Pipeline
-    # FIRST (DeepSeek): scene → opening shot breakdown
-    # FIRST (Gemini):   opening shot → image prompt
-    # LAST  (DeepSeek): scene + first shot → closing shot breakdown
-    # LAST  (Gemini):   closing shot + first prompt → closing image prompt
-    # REVIEW (Qwen):    review [first, last] pair
+    # Opening Shot Pipeline (Simplified)
+    # OPENING (DeepSeek): scene → opening shot breakdown
+    # OPENING (Gemini):   opening shot → image prompt
     # ─────────────────────────────────────────────────────────────────────────
 
-    async def _generate_first_shot_breakdown(
+    async def _generate_opening_shot_breakdown(
         self,
         scene: dict,
-        previous_last_shot: dict | None = None,
+        previous_scene_prompt: dict | None = None,
         log_callback: Callable[[str], None] | None = None
     ) -> dict:
         """
-        Generate ONE opening/first shot description for a scene.
+        Generate ONE opening shot description for a scene.
         Uses DeepSeek Reasoner → Gemini fallback.
         """
         scene_number = scene.get("scene_number", 0)
         synopsis = "\n".join(scene.get("key_points", []))
         emotional_beat = scene.get("emotional_beat", "dramatic")
 
-        # Build continuity context from previous scene's last shot
-        previous_last_shot_context = ""
-        if previous_last_shot:
-            prev_shot = previous_last_shot.get("shot", previous_last_shot)
-            prev_img = previous_last_shot.get("image_prompt", {})
+        # Build continuity context from previous scene
+        previous_context = ""
+        if previous_scene_prompt:
+            prev_shot = previous_scene_prompt.get("shot", previous_scene_prompt)
+            prev_img = previous_scene_prompt.get("image_prompt", {})
             context_lines = [
-                "## Previous Scene — Last Shot Context",
-                "Connect the atmosphere of this opening shot naturally to the previous scene's closing shot.",
+                "## Previous Scene — Opening Shot Context",
+                "Connect the atmosphere of this opening shot naturally to the previous scene.",
                 f"- Camera type: {prev_shot.get('camera_type', '')}",
                 f"- Subject: {prev_shot.get('subject', '')}",
                 f"- Lighting: {prev_shot.get('lighting', '')}",
@@ -456,22 +453,22 @@ Previous Section: {section.get('title', 'Unknown')}
             ]
             if prev_img.get("prompt"):
                 context_lines.append(f"- Image prompt: {prev_img['prompt'][:300]}")
-            previous_last_shot_context = "\n".join(context_lines) + "\n"
+            previous_context = "\n".join(context_lines) + "\n"
 
         template = self._load_prompt("shot_first_breakdown")
         prompt = template.format(
             scene_number=scene_number,
             synopsis=synopsis,
             emotional_beat=emotional_beat,
-            previous_last_shot_context=previous_last_shot_context,
+            previous_last_shot_context=previous_context,
         )
 
         try:
             if self.deepseek_api_key:
-                self.log(f"    [FIRST] Using DeepSeek Reasoner for opening shot...", log_callback)
+                self.log(f"    [OPENING] Using DeepSeek Reasoner for opening shot...", log_callback)
                 result = await self._call_deepseek_json(prompt)
             else:
-                self.log(f"    [FIRST] Using Gemini fallback for opening shot...", log_callback)
+                self.log(f"    [OPENING] Using Gemini fallback for opening shot...", log_callback)
                 response = self.gemini_client.models.generate_content(
                     model=self.gemini_model,
                     contents=prompt,
@@ -485,7 +482,7 @@ Previous Section: {section.get('title', 'Unknown')}
             if isinstance(result, dict):
                 result["shot_number"] = 1
                 result["role"] = "opening"
-            self.log(f"    [FIRST] Scene {scene_number}: opening shot breakdown done", log_callback)
+            self.log(f"    [OPENING] Scene {scene_number}: opening shot breakdown done", log_callback)
             return result
         except Exception as e:
             self.log(f"    [!] Opening shot breakdown failed for scene {scene_number}: {e}", log_callback)
@@ -493,162 +490,9 @@ Previous Section: {section.get('title', 'Unknown')}
                 "shot_number": 1, "role": "opening",
                 "camera_type": "wide",
                 "subject": synopsis[:200],
-                "lighting": "cinematic, dramatic",
+                "lighting": "anime, vibrant",
                 "mood": emotional_beat,
                 "motion": "static",
-            }
-
-    async def _generate_last_shot_breakdown(
-        self,
-        scene: dict,
-        first_shot_with_prompt: dict,
-        log_callback: Callable[[str], None] | None = None
-    ) -> dict:
-        """
-        Generate ONE closing/last shot description for a scene.
-        Uses first_shot_with_prompt as visual reference for continuity.
-        """
-        scene_number = scene.get("scene_number", 0)
-        synopsis = "\n".join(scene.get("key_points", []))
-        emotional_beat = scene.get("emotional_beat", "dramatic")
-
-        # Build first shot context for closing shot generation
-        first_shot = first_shot_with_prompt.get("shot", {})
-        first_img = first_shot_with_prompt.get("image_prompt", {})
-        first_shot_json = json.dumps({
-            "shot_number": first_shot.get("shot_number", 1),
-            "camera_type": first_shot.get("camera_type", ""),
-            "subject": first_shot.get("subject", ""),
-            "lighting": first_shot.get("lighting", ""),
-            "mood": first_shot.get("mood", ""),
-            "motion": first_shot.get("motion", ""),
-            "image_prompt": first_img.get("prompt", "")[:300],
-        }, ensure_ascii=False, indent=2)
-
-        template = self._load_prompt("shot_last_breakdown")
-        prompt = template.format(
-            scene_number=scene_number,
-            synopsis=synopsis,
-            emotional_beat=emotional_beat,
-            first_shot_json=first_shot_json,
-        )
-
-        try:
-            if self.deepseek_api_key:
-                self.log(f"    [LAST] Using DeepSeek Reasoner for closing shot...", log_callback)
-                result = await self._call_deepseek_json(prompt)
-            else:
-                self.log(f"    [LAST] Using Gemini fallback for closing shot...", log_callback)
-                response = self.gemini_client.models.generate_content(
-                    model=self.gemini_model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.7, top_p=0.9, max_output_tokens=1024,
-                        response_mime_type="application/json",
-                    )
-                )
-                result = self._parse_json_response(response.text or "")
-            if isinstance(result, dict):
-                result["shot_number"] = 2
-                result["role"] = "closing"
-            self.log(f"    [LAST] Scene {scene_number}: closing shot breakdown done", log_callback)
-            return result
-        except Exception as e:
-            self.log(f"    [!] Closing shot breakdown failed for scene {scene_number}: {e}", log_callback)
-            first_shot = first_shot_with_prompt.get("shot", {})
-            return {
-                "shot_number": 2, "role": "closing",
-                "camera_type": "medium" if first_shot.get("camera_type") != "medium" else "close-up",
-                "subject": synopsis[:200],
-                "lighting": first_shot.get("lighting", "cinematic, dramatic"),
-                "mood": emotional_beat,
-                "motion": "static",
-            }
-
-    # Legacy method — kept for backward compatibility
-    async def _step1_shot_breakdown(
-        self,
-        scene: dict,
-        previous_last_shot: dict | None = None,
-        log_callback: Callable[[str], None] | None = None
-    ) -> dict:
-        """
-        STEP 1: Decompose scene key_points into 2-4 individual shots.
-        Returns dict with 'shots' list, each shot has camera_type, subject, lighting, mood, motion.
-        """
-        scene_number = scene.get("scene_number", 0)
-        synopsis = "\n".join(scene.get("key_points", []))
-        emotional_beat = scene.get("emotional_beat", "dramatic")
-
-        # Build continuity context from previous scene's last shot
-        # previous_last_shot is a {shot: {...}, image_prompt: {...}} dict
-        previous_last_shot_context = ""
-        if previous_last_shot:
-            prev_shot = previous_last_shot.get("shot", previous_last_shot)
-            prev_img = previous_last_shot.get("image_prompt", {})
-            context_lines = [
-                "## Continuity Context",
-                "The previous scene ended with this shot. Make the FIRST shot of this scene connect naturally.",
-                f"- Camera type: {prev_shot.get('camera_type', '')}",
-                f"- Subject: {prev_shot.get('subject', '')}",
-                f"- Lighting: {prev_shot.get('lighting', '')}",
-                f"- Mood: {prev_shot.get('mood', '')}",
-            ]
-            if prev_img.get("prompt"):
-                context_lines.append(f"- Final image prompt: {prev_img['prompt'][:300]}")
-            previous_last_shot_context = "\n".join(context_lines) + "\n"
-
-        template = self._load_prompt("shot_breakdown")
-        prompt = template.format(
-            scene_number=scene_number,
-            synopsis=synopsis,
-            emotional_beat=emotional_beat,
-            previous_last_shot_context=previous_last_shot_context,
-        )
-
-        try:
-            if self.deepseek_api_key:
-                self.log(f"    [STEP 1] Using DeepSeek Reasoner for shot breakdown...", log_callback)
-                result = await self._call_deepseek_json(prompt)
-            else:
-                self.log(f"    [STEP 1] DeepSeek key not found, using Gemini fallback...", log_callback)
-                response = self.gemini_client.models.generate_content(
-                    model=self.gemini_model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.7,
-                        top_p=0.9,
-                        max_output_tokens=2048,
-                        response_mime_type="application/json",
-                    )
-                )
-                result = self._parse_json_response(response.text or "")
-            shots = result.get("shots", [])
-            self.log(f"    [STEP 1] Scene {scene_number}: {len(shots)} shots decomposed", log_callback)
-            return result
-        except Exception as e:
-            self.log(f"    [!] Shot breakdown failed for scene {scene_number}: {e}", log_callback)
-            return {
-                "scene_number": scene_number,
-                "synopsis": synopsis,
-                "shots": [
-                    {
-                        "shot_number": 1,
-                        "camera_type": "wide",
-                        "subject": synopsis[:200],
-                        "lighting": "cinematic, dramatic",
-                        "mood": emotional_beat,
-                        "motion": "static",
-                    },
-                    {
-                        "shot_number": 2,
-                        "camera_type": "medium",
-                        "subject": synopsis[:200],
-                        "lighting": "cinematic, dramatic",
-                        "mood": emotional_beat,
-                        "motion": "static",
-                    },
-                ],
             }
 
     async def _step2_shot_to_image_prompt(
@@ -690,215 +534,147 @@ Previous Section: {section.get('title', 'Unknown')}
             self.log(f"    [!] Image prompt generation failed for shot {shot_number}: {e}", log_callback)
             return {
                 "shot_number": shot_number,
-                "prompt": f"{shot.get('subject', '')} {shot.get('camera_type', 'wide shot')}, {shot.get('lighting', 'cinematic lighting')}, {shot.get('mood', 'dramatic')}, cinematic still, muted color palette, film grain, 16:9, photorealistic",
-                "negative_prompt": "cartoon, anime, bright colors, cheerful, text, watermark, blurry, low quality, distorted, deformed, ugly, jpeg artifacts",
-                "style_tags": ["cinematic", "photorealistic", "dark"],
+                "prompt": f"{shot.get('subject', '')} {shot.get('camera_type', 'wide shot')}, {shot.get('lighting', 'anime lighting')}, {shot.get('mood', 'dramatic')}, anime style, high quality animation still, vibrant colors, cel shaded, detailed background, 16:9",
+                "negative_prompt": "photorealistic, realistic, 3d render, cgi, live action, text, watermark, blurry, low quality, distorted, deformed, ugly, jpeg artifacts",
+                "style_tags": ["anime", "animation", "vibrant"],
                 "recommended_aspect_ratio": "16:9",
             }
 
-    async def _generate_last_shot_image_prompt(
+    async def _generate_sub_scene_video_prompt(
         self,
-        shot: dict,
-        first_shot_prompt: str,
-        log_callback: Callable[[str], None] | None = None
+        scene: dict,
+        key_point: str,
+        opening_shot: dict,
+        sub_scene_index: int,
+        total_sub_scenes: int,
+        log_callback=None,
     ) -> dict:
-        """
-        Convert the closing shot dict into an image generation prompt.
-        Uses first_shot_prompt as visual reference for within-scene continuity.
-        """
-        shot_number = shot.get("shot_number", 2)
-        shot_json = json.dumps(shot, ensure_ascii=False, indent=2)
+        """Generate a video prompt describing the visual journey from opening shot."""
+        if log_callback:
+            log_callback(f"    [VIDEO] Generating sub-scene video prompt (Gemini)...")
 
-        template = self._load_prompt("shot_last_to_image_prompt")
+        # Load template from assets/prompts/shot_video_prompt.txt
+        prompt_file = Path(__file__).parent.parent / "assets" / "prompts" / "shot_video_prompt.txt"
+        template = prompt_file.read_text(encoding="utf-8")
+
+        opening_shot_prompt = opening_shot.get("image_prompt", {}).get("prompt", "")
+
         prompt = template.format(
-            shot_json=shot_json,
-            shot_number=shot_number,
-            first_shot_prompt=first_shot_prompt,
+            scene_title=scene.get("title", ""),
+            key_point=key_point,
+            emotional_beat=scene.get("emotional_beat", ""),
+            sub_scene_index=sub_scene_index,
+            total_sub_scenes=total_sub_scenes,
+            first_shot_prompt=opening_shot_prompt,
+            last_shot_prompt=opening_shot_prompt,
         )
 
+        video_prompt = {"video_prompt": "", "camera_directions": [], "motion_type": "", "transition_style": ""}
         try:
             response = self.gemini_client.models.generate_content(
                 model=self.gemini_model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    temperature=0.7, top_p=0.9, max_output_tokens=1024,
                     response_mime_type="application/json",
-                )
+                    temperature=0.7,
+                ),
             )
-            result = self._parse_json_response(response.text or "")
-            if isinstance(result, list):
-                result = result[0] if result else {}
-            self.log(f"    [LAST] Shot {shot_number}: closing image prompt generated", log_callback)
-            return result
+            parsed = self._parse_json_response(response.text)
+            if isinstance(parsed, dict):
+                video_prompt = parsed
         except Exception as e:
-            self.log(f"    [!] Closing image prompt failed for shot {shot_number}: {e}", log_callback)
-            return {
-                "shot_number": shot_number, "role": "closing",
-                "prompt": f"{shot.get('subject', '')} {shot.get('camera_type', 'medium shot')}, {shot.get('lighting', 'cinematic lighting')}, {shot.get('mood', 'dramatic')}, cinematic still, dark mystery atmosphere, muted color palette, film grain, 16:9 aspect ratio, photorealistic",
-                "negative_prompt": "cartoon, anime, bright colors, cheerful, text, watermark, blurry, low quality, distorted, deformed, ugly, jpeg artifacts",
-                "style_tags": ["cinematic", "photorealistic", "dark"],
-                "recommended_aspect_ratio": "16:9",
-            }
+            if log_callback:
+                log_callback(f"    [!] Video prompt generation failed: {e}")
 
-    async def _step3_review_and_enhance(
+        return video_prompt
+
+    async def generate_sub_scene_prompts(
         self,
         scene: dict,
-        shots_with_prompts: list[dict],
-        previous_last_shot: dict | None = None,
-        log_callback: Callable[[str], None] | None = None
-    ) -> list[dict]:
+        key_point: str,
+        sub_scene_index: int,
+        total_sub_scenes: int,
+        previous_opening_shot: dict | None = None,
+        log_callback=None,
+        speed_mode: bool = False,  # Skip review for faster generation
+    ) -> dict:
         """
-        STEP 3: Review all shot prompts for the scene and enhance any weak ones.
-        Uses Qwen (creative critique) → Gemini fallback.
-        previous_last_shot: the last {shot, image_prompt} dict from the previous scene, for cross-scene visual continuity.
-        Returns same structure as input but with improved image_prompt dicts where needed.
+        Generate opening image prompt + video prompt for a single sub-scene (key_point).
+
+        Simplified pipeline: only generates opening shot prompt.
+        Cross-sub-scene continuity: previous_opening_shot from prior sub-scene feeds this one.
+
+        Speed Mode: Skips review step for faster generation.
         """
-        scene_number = scene.get("scene_number", 0)
-        synopsis = "\n".join(scene.get("key_points", []))
-        emotional_beat = scene.get("emotional_beat", "dramatic")
+        # Build synthetic scene dict scoped to this single key_point
+        synthetic_scene = {
+            "scene_number": scene.get("scene_number", 1),
+            "title": scene.get("title", ""),
+            "key_points": [key_point],  # SINGLE key_point only
+            "emotional_beat": scene.get("emotional_beat", ""),
+            "duration_seconds": max(10, scene.get("duration_seconds", 30) // max(1, total_sub_scenes)),
+        }
 
-        # Build cross-scene continuity context from previous scene's last shot
-        previous_last_shot_context = ""
-        if previous_last_shot:
-            prev_shot = previous_last_shot.get("shot", {})
-            prev_prompt = previous_last_shot.get("image_prompt", {})
-            previous_last_shot_context = (
-                "## Previous Scene — Last Shot (for cross-scene continuity)\n"
-                "The first shot of THIS scene must visually connect to this ending shot from the previous scene.\n"
-                "Match its color temperature, lighting keywords, and atmosphere — but with a new subject.\n\n"
-                f"- Camera: {prev_shot.get('camera_type', '')}\n"
-                f"- Mood: {prev_shot.get('mood', '')}\n"
-                f"- Lighting: {prev_shot.get('lighting', '')}\n"
-                f"- Image Prompt: {prev_prompt.get('prompt', '')}\n\n"
-            )
-
-        # Build shots_json for review: only include image_prompt data (not full shot breakdown)
-        review_input = [
-            {
-                "shot_number": item["shot"].get("shot_number", i + 1),
-                "camera_type": item["shot"].get("camera_type", ""),
-                "prompt": item["image_prompt"].get("prompt", ""),
-                "negative_prompt": item["image_prompt"].get("negative_prompt", ""),
-                "style_tags": item["image_prompt"].get("style_tags", []),
-                "recommended_aspect_ratio": item["image_prompt"].get("recommended_aspect_ratio", "16:9"),
-            }
-            for i, item in enumerate(shots_with_prompts)
-        ]
-
-        template = self._load_prompt("shot_review")
-        prompt = template.format(
-            synopsis=synopsis,
-            emotional_beat=emotional_beat,
-            previous_last_shot_context=previous_last_shot_context,
-            shots_json=json.dumps(review_input, ensure_ascii=False, indent=2),
+        # Step 1: Opening shot breakdown (DeepSeek)
+        if log_callback:
+            log_callback(f"    [1/2] Opening shot breakdown (DeepSeek)...")
+        opening_shot_desc = await self._generate_opening_shot_breakdown(
+            synthetic_scene, previous_opening_shot, log_callback
         )
 
-        try:
-            if self.dashscope_api_key:
-                self.log(f"    [STEP 3] Using Qwen for prompt quality review...", log_callback)
-                reviewed = await self._call_qwen_json(prompt)
-            else:
-                self.log(f"    [STEP 3] Qwen key not found, using Gemini fallback for review...", log_callback)
-                response = self.gemini_client.models.generate_content(
-                    model=self.gemini_model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.5,
-                        top_p=0.9,
-                        max_output_tokens=3000,
-                        response_mime_type="application/json",
-                    )
-                )
-                reviewed = self._parse_json_response(response.text or "")
+        # Step 2: Opening shot image prompt (Gemini)
+        if log_callback:
+            log_callback(f"    [2/2] Opening shot image prompt (Gemini)...")
+        opening_img_prompt = await self._step2_shot_to_image_prompt(opening_shot_desc, log_callback)
+        opening_shot = {"shot": opening_shot_desc, "image_prompt": opening_img_prompt}
 
-            # reviewed should be a list of enhanced shot prompts
-            if isinstance(reviewed, dict):
-                reviewed = reviewed.get("shots", list(reviewed.values())[0] if reviewed else [])
-            if not isinstance(reviewed, list):
-                self.log(f"    [!] Review returned unexpected format, keeping originals", log_callback)
-                return shots_with_prompts
+        # Step 3: Video prompt (Gemini)
+        if log_callback:
+            log_callback(f"    [+] Video prompt (Gemini)...")
+        video_prompt_data = await self._generate_sub_scene_video_prompt(
+            scene=scene,
+            key_point=key_point,
+            opening_shot=opening_shot,
+            sub_scene_index=sub_scene_index,
+            total_sub_scenes=total_sub_scenes,
+            log_callback=log_callback,
+        )
 
-            # Merge reviewed image_prompts back into original structure
-            reviewed_by_shot_num = {item.get("shot_number", i + 1): item for i, item in enumerate(reviewed)}
-            result = []
-            changes = 0
-            for item in shots_with_prompts:
-                shot_num = item["shot"].get("shot_number", 0)
-                enhanced = reviewed_by_shot_num.get(shot_num)
-                if enhanced:
-                    note = enhanced.get("review_note", "")
-                    if "no changes" not in note.lower() and "approved" not in note.lower():
-                        changes += 1
-                    result.append({
-                        "shot": item["shot"],
-                        "image_prompt": {
-                            "shot_number": shot_num,
-                            "prompt": enhanced.get("prompt", item["image_prompt"].get("prompt", "")),
-                            "negative_prompt": enhanced.get("negative_prompt", item["image_prompt"].get("negative_prompt", "")),
-                            "style_tags": enhanced.get("style_tags", item["image_prompt"].get("style_tags", [])),
-                            "recommended_aspect_ratio": enhanced.get("recommended_aspect_ratio", "16:9"),
-                            "review_note": note,
-                        },
-                    })
-                else:
-                    result.append(item)
-
-            self.log(f"    [STEP 3] Review complete: {changes}/{len(shots_with_prompts)} shots enhanced", log_callback)
-            return result
-
-        except Exception as e:
-            self.log(f"    [!] Review step failed for scene {scene_number}: {e} — keeping original prompts", log_callback)
-            return shots_with_prompts
+        return {
+            "sub_scene_index": sub_scene_index,
+            "key_point": key_point,
+            "opening_shot": opening_shot,
+            "video_prompt": video_prompt_data,
+        }
 
     async def generate_scene_prompts(
         self,
         scene: dict,
-        previous_last_shot: dict | None = None,
+        previous_opening_shot: dict | None = None,
         log_callback: Callable[[str], None] | None = None
     ) -> dict:
         """
-        Run the first+last shot pipeline for a single scene:
-          FIRST (DeepSeek): key_points → opening shot breakdown
-          FIRST (Gemini):   opening shot → image prompt
-          LAST  (DeepSeek): key_points + first shot → closing shot breakdown
-          LAST  (Gemini):   closing shot + first prompt → closing image prompt (visual continuity)
-          REVIEW (Qwen):    review [first, last] pair for quality
-        Returns scene result with first_shot and last_shot, plus last_shot for cross-scene continuity.
+        Run the opening shot pipeline for a single scene:
+          OPENING (DeepSeek): key_points → opening shot breakdown
+          OPENING (Gemini):   opening shot → image prompt
+        Returns scene result with opening_shot, plus opening_shot for cross-scene continuity.
         """
         scene_number = scene.get("scene_number", 0)
         scene_title = scene.get("title", "Unknown")
 
         self.log(f"  [*] Scene {scene_number}: {scene_title}", log_callback)
 
-        # FIRST SHOT: opening breakdown → image prompt
-        first_shot_desc = await self._generate_first_shot_breakdown(scene, previous_last_shot, log_callback)
-        first_img_prompt = await self._step2_shot_to_image_prompt(first_shot_desc, log_callback)
-        first_shot = {"shot": first_shot_desc, "image_prompt": first_img_prompt}
-
-        # LAST SHOT: closing breakdown (informed by first) → image prompt (visual continuity)
-        last_shot_desc = await self._generate_last_shot_breakdown(scene, first_shot, log_callback)
-        first_prompt_text = first_img_prompt.get("prompt", "")
-        last_img_prompt = await self._generate_last_shot_image_prompt(last_shot_desc, first_prompt_text, log_callback)
-        last_shot = {"shot": last_shot_desc, "image_prompt": last_img_prompt}
-
-        # REVIEW: Qwen reviews both shots as a pair
-        reviewed_pair = await self._step3_review_and_enhance(
-            scene, [first_shot, last_shot],
-            previous_last_shot=previous_last_shot,
-            log_callback=log_callback,
-        )
-
-        # Unpack reviewed pair
-        reviewed_first = reviewed_pair[0] if len(reviewed_pair) > 0 else first_shot
-        reviewed_last = reviewed_pair[1] if len(reviewed_pair) > 1 else last_shot
+        # OPENING SHOT: breakdown → image prompt
+        opening_shot_desc = await self._generate_opening_shot_breakdown(scene, previous_opening_shot, log_callback)
+        opening_img_prompt = await self._step2_shot_to_image_prompt(opening_shot_desc, log_callback)
+        opening_shot = {"shot": opening_shot_desc, "image_prompt": opening_img_prompt}
 
         return {
             "scene_number": scene_number,
             "scene_title": scene_title,
             "emotional_beat": scene.get("emotional_beat", ""),
             "synopsis": "\n".join(scene.get("key_points", [])),
-            "first_shot": reviewed_first,
-            "last_shot": reviewed_last,
+            "opening_shot": opening_shot,
         }
 
     async def generate_all_scene_prompts(
@@ -907,7 +683,7 @@ Previous Section: {section.get('title', 'Unknown')}
         log_callback: Callable[[str], None] | None = None
     ) -> list[dict]:
         """
-        Generate image prompts for all scenes in a project using the 2-step pipeline.
+        Generate image prompts for all scenes in a project using the opening shot pipeline.
         Reads from workspace/{project_id}/scripts/02_scene_structure.json.
         Saves output to workspace/{project_id}/scripts/05_image_prompts.json.
         """
@@ -923,19 +699,19 @@ Previous Section: {section.get('title', 'Unknown')}
         self.log(f"[*] Generating image prompts for '{topic}' ({len(scenes)} scenes)", log_callback)
 
         results = []
-        previous_last_shot = None
+        previous_opening_shot = None
 
         for scene in scenes:
-            scene_result = await self.generate_scene_prompts(scene, previous_last_shot, log_callback)
+            scene_result = await self.generate_scene_prompts(scene, previous_opening_shot, log_callback)
             results.append(scene_result)
-            previous_last_shot = scene_result.get("last_shot")
+            previous_opening_shot = scene_result.get("opening_shot")
 
         # Save results
         output_path = self.workspace_dir / project_id / "scripts" / "05_image_prompts.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        total_shots = len(results) * 2  # always first + last per scene
+        total_shots = len(results)  # 1 opening shot per scene
         self.log(f"[+] Done: {len(scenes)} scenes, {total_shots} shots → {output_path}", log_callback)
 
         return results

@@ -1,0 +1,41 @@
+You are an expert video prompt engineer for AI video generation tools (Runway, Pika, Kling, Sora).
+
+Your task: generate a VIDEO PROMPT describing the visual journey from a FIRST shot to a LAST shot.
+The video should feel like a single continuous 5-10 second clip that naturally transitions from the opening composition to the closing composition.
+
+**CRITICAL: ALL OUTPUT MUST BE IN ENGLISH ONLY.**
+
+## Scene Context
+
+- **Scene Title**: {scene_title}
+- **Key Point (Narrative Beat)**: {key_point}
+- **Emotional Beat**: {emotional_beat}
+- **Sub-scene**: {sub_scene_index} of {total_sub_scenes}
+
+## First Shot (Opening Frame)
+
+{first_shot_prompt}
+
+## Last Shot (Closing Frame)
+
+{last_shot_prompt}
+
+## Rules
+
+1. Describe a VISUAL JOURNEY from the first shot composition to the last shot composition
+2. Include specific camera movements: dolly, pan, tilt, zoom, rack focus, tracking shot, crane, whip pan
+3. Describe what physically changes: subject movement, camera repositioning, lighting evolution, atmosphere shifts
+4. The narrative tension from the key_point must be conveyed through VISUAL motion, not text
+5. Keep the video_prompt 150-300 words — dense with visual detail, no filler phrases
+6. The emotional tone must arc from the first shot's mood to the last shot's mood
+7. Mention timing: which movements are slow/fast, where the clip pauses or accelerates
+8. Atmospheric effects (fog, dust, light rays, particle effects) should enhance the emotional arc
+
+## Output Format (JSON only, no markdown, no triple backticks):
+
+{{
+  "video_prompt": "Full, detailed video prompt describing the visual journey. Example format: 'OPENING: [first shot description with camera position]. [Camera movement description] as [subject/atmosphere changes]. [Mid-transition: what the camera does]. [How atmosphere/lighting evolves]. CLOSING: Camera [final movement] settling into [last shot composition]. [Final mood/emotional state].'",
+  "camera_directions": ["dolly forward", "tilt down", "rack focus"],
+  "motion_type": "smooth_transition",
+  "transition_style": "continuous_shot"
+}}

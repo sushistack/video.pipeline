@@ -1,0 +1,11 @@
+{
+  "pipeline_id": "sub-scene-pipeline-2025",
+  "name": "implement",
+  "active": true,
+  "current_stage": 3,
+  "stages": [
+    {"name": "explore", "status": "completed"},
+    {"name": "architect", "status": "completed"},
+    {"name": "executor", "status": "in_progress"}
+  ]
+}

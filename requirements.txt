@@ -20,3 +20,5 @@ aiohttp>=3.9.0
 pillow>=10.0.0
 opencv-python>=4.8.0,<4.10.0
 scenedetect[opencv]>=0.6.0
+huggingface_hub>=0.20.0
+transformers>=4.35.0

@@ -42,10 +42,10 @@ def page() -> rx.Component:
                 "pink"
             ),
             _feature_card(
-                "🖼️ Preprocess",
-                "Image preprocessing",
-                "/image-preprocess",
-                "cyan"
+                "🖼️ Image",
+                "Janus-Pro-7B image generation",
+                "/image-generator",
+                "violet"
             ),
             _feature_card(
                 "🎬 Scene",
