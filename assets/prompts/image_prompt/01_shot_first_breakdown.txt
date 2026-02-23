@@ -4,7 +4,22 @@ The opening shot establishes the scene: sets location, atmosphere, introduces th
 
 **CRITICAL: ALL OUTPUT MUST BE IN ENGLISH ONLY.**
 
+## Entity Visual Identity (GROUND TRUTH)
+
+{entity_visual_identity}
+
+## Frozen Character Descriptor
+
+If the entity appears in this shot, you MUST use the following descriptor VERBATIM in the subject field.
+Do NOT paraphrase, abbreviate, or modify it. Add pose/action details AFTER the descriptor.
+
+**FROZEN DESCRIPTOR:**
+{frozen_descriptor}
+
+---
+
 {previous_last_shot_context}
+
 ## Scene Information
 
 - **Scene Number**: {scene_number}
@@ -16,8 +31,10 @@ The opening shot establishes the scene: sets location, atmosphere, introduces th
 1. Generate exactly ONE shot — the scene's opening/establishing shot
 2. Camera type choices: wide, medium, close-up, extreme close-up, POV, over-the-shoulder, bird's eye, low angle
 3. If previous scene context is given, make this shot's ATMOSPHERE connect naturally (not the subject)
-4. Be specific: name exact physical traits, exact lighting direction, exact emotional tone
-5. No consecutive camera type with previous scene's last shot
+4. **CRITICAL**: If the entity is visible, the `subject` field MUST start with the FROZEN DESCRIPTOR verbatim, then add pose/action
+5. Be specific: name exact physical traits, exact lighting direction, exact emotional tone
+6. No consecutive camera type with previous scene's last shot
+7. Use visual elements from the Entity Visual Identity section — do NOT invent new features
 
 ## Output Format (JSON only, no markdown):
 
@@ -25,8 +42,22 @@ The opening shot establishes the scene: sets location, atmosphere, introduces th
   "shot_number": 1,
   "role": "opening",
   "camera_type": "wide",
-  "subject": "detailed description of what is in frame — who/what, where, doing what",
+  "entity_visible": true,
+  "subject": "[FROZEN DESCRIPTOR] + specific pose/action in this frame",
   "lighting": "light direction, color temperature, atmospheric quality",
   "mood": "emotional atmosphere",
   "motion": "static OR specific camera movement"
+}}
+
+## Example (if entity visible):
+
+{{
+  "shot_number": 1,
+  "role": "opening",
+  "camera_type": "medium",
+  "entity_visible": true,
+  "subject": "a tall gaunt humanoid figure 1.9m tall, wearing full-length tattered black robe with organic leathery texture seamlessly fused to the body, white bird-beaked plague doctor mask with hairline cracks fused to head like grown bone, long thin fingers with dark grey skin visible at wrists, carrying worn black leather medical bag with brass clasps — standing perfectly still in the corner of a sterile grey containment cell, one hand resting on the bag's handle",
+  "lighting": "harsh overhead fluorescent, casting sharp shadows, cold white light temperature",
+  "mood": "clinical unease, something not quite right",
+  "motion": "static, slight camera drift"
 }}

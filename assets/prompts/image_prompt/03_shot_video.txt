@@ -5,6 +5,20 @@ The video should feel like a single continuous 5-10 second clip that naturally t
 
 **CRITICAL: ALL OUTPUT MUST BE IN ENGLISH ONLY.**
 
+## Entity Consistency Protocol
+
+If the SCP entity appears in this video clip, you MUST maintain visual consistency:
+
+1. Use the FROZEN DESCRIPTOR below to describe the entity in ANY frame where it appears
+2. The entity's physical features CANNOT change during the video (no morphing, transformation)
+3. Only pose, lighting effects, and camera perspective can change
+4. If the entity moves, describe the motion WITHOUT changing its physical description
+
+**FROZEN CHARACTER DESCRIPTOR:**
+{frozen_descriptor}
+
+---
+
 ## Scene Context
 
 - **Scene Title**: {scene_title}
@@ -24,18 +38,36 @@ The video should feel like a single continuous 5-10 second clip that naturally t
 
 1. Describe a VISUAL JOURNEY from the first shot composition to the last shot composition
 2. Include specific camera movements: dolly, pan, tilt, zoom, rack focus, tracking shot, crane, whip pan
-3. Describe what physically changes: subject movement, camera repositioning, lighting evolution, atmosphere shifts
-4. The narrative tension from the key_point must be conveyed through VISUAL motion, not text
-5. Keep the video_prompt 150-300 words — dense with visual detail, no filler phrases
-6. The emotional tone must arc from the first shot's mood to the last shot's mood
-7. Mention timing: which movements are slow/fast, where the clip pauses or accelerates
-8. Atmospheric effects (fog, dust, light rays, particle effects) should enhance the emotional arc
+3. Describe what physically changes: subject MOTION (not features), camera repositioning, lighting evolution, atmosphere shifts
+4. **CRITICAL**: If the entity is present, its PHYSICAL FEATURES remain constant. Only describe POSE, GESTURE, or MOVEMENT changes.
+5. The narrative tension from the key_point must be conveyed through VISUAL motion, not text
+6. Keep the video_prompt 150-300 words — dense with visual detail, no filler phrases
+7. The emotional tone must arc from the first shot's mood to the last shot's mood
+8. Mention timing: which movements are slow/fast, where the clip pauses or accelerates
+9. Atmospheric effects (fog, dust, light rays, particle effects) should enhance the emotional arc
+
+## Entity Motion Examples (Consistency-Safe)
+
+✅ CORRECT (motion only):
+- "The entity slowly turns its head to face the camera"
+- "Its long fingers reach toward the subject"
+- "The figure takes a step forward, robes shifting"
+
+❌ INCORRECT (changes physical features):
+- "The mask begins to crack revealing flesh beneath"
+- "Its robes shift to a lighter color"
+- "The entity grows taller"
 
 ## Output Format (JSON only, no markdown, no triple backticks):
 
 {{
-  "video_prompt": "Full, detailed video prompt describing the visual journey. Example format: 'OPENING: [first shot description with camera position]. [Camera movement description] as [subject/atmosphere changes]. [Mid-transition: what the camera does]. [How atmosphere/lighting evolves]. CLOSING: Camera [final movement] settling into [last shot composition]. [Final mood/emotional state].'",
+  "video_prompt": "Full, detailed video prompt describing the visual journey. If entity visible, use frozen descriptor. Example: 'OPENING: [first shot with entity using frozen descriptor]. [Camera movement] as [entity motion WITHOUT feature changes]. TRANSITION: [camera repositions, atmosphere shifts]. CLOSING: [final composition with entity pose change only].'",
   "camera_directions": ["dolly forward", "tilt down", "rack focus"],
   "motion_type": "smooth_transition",
-  "transition_style": "continuous_shot"
+  "transition_style": "continuous_shot",
+  "entity_consistency_check": {{
+    "entity_visible": true,
+    "frozen_descriptor_used": true,
+    "no_feature_changes": true
+  }}
 }}

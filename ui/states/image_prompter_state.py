@@ -69,6 +69,10 @@ class ImagePrompterState(rx.State):
     available_projects: list[str] = []
     selected_project: str = ""
 
+    # SCP facts for character consistency
+    scp_facts: dict = {}
+    has_scp_facts: bool = False
+
     # Settings
     speed_mode: bool = True  # Skip Qwen review for faster generation
     parallel_processing: bool = True  # Process sub-scenes in parallel
@@ -256,7 +260,30 @@ class ImagePrompterState(rx.State):
         """Set selected project"""
         self.selected_project = value
         self.extract_content_title()
+        self.load_scp_facts()
         self.load_existing_prompts()
+
+    def load_scp_facts(self):
+        """Load SCP facts from project directory if available"""
+        if not self.selected_project:
+            self.scp_facts = {}
+            self.has_scp_facts = False
+            return
+
+        scp_facts_path = PARENT_DIR / "workspace" / self.selected_project / "scp_facts.json"
+        if scp_facts_path.exists():
+            try:
+                with open(scp_facts_path, "r", encoding="utf-8") as f:
+                    self.scp_facts = json.load(f)
+                    self.has_scp_facts = True
+                    self.log(f"✅ Loaded SCP facts: {self.scp_facts.get('scp_id', 'Unknown')}")
+            except Exception as e:
+                print(f"Failed to load SCP facts: {e}")
+                self.scp_facts = {}
+                self.has_scp_facts = False
+        else:
+            self.scp_facts = {}
+            self.has_scp_facts = False
 
     def set_speed_mode(self, value: bool):
         """Toggle speed mode"""
@@ -281,11 +308,20 @@ class ImagePrompterState(rx.State):
             self.log("=" * 60)
             self.log(f"🎨 Starting Image Prompt Generation (Sub-scene Pipeline)")
             self.log(f"📁 Project: {self.selected_project}")
+            if self.has_scp_facts:
+                self.log(f"🔬 SCP: {self.scp_facts.get('scp_id', 'Unknown')} (Frozen Descriptor enabled)")
             self.log("=" * 60)
             yield
 
             workspace_dir = PARENT_DIR / "workspace"
-            generator = ImagePromptGenerator(workspace_dir=workspace_dir)
+
+            # Pass SCP facts for character consistency (Frozen Descriptor)
+            scp_facts_dict = dict(self.scp_facts) if self.has_scp_facts else None
+            generator = ImagePromptGenerator(workspace_dir=workspace_dir, scp_facts=scp_facts_dict)
+
+            if scp_facts_dict:
+                self.log(f"    [Frozen Descriptor] {generator.frozen_descriptor[:100]}...")
+                yield
 
             def log_callback(message: str):
                 self.log_with_callback(message)

@@ -17,6 +17,9 @@ if str(UI_DIR) not in sys.path:
 
 from core.gen_story_script import StoryToScriptGenerator
 
+# SCP Database path
+SCP_DB_DIR = PARENT_DIR / "assets" / "scp.db"
+
 
 class StoryScriptState(rx.State):
     """State management for Story-to-Script Tab"""
@@ -25,6 +28,11 @@ class StoryScriptState(rx.State):
     story_title: str = ""
     story_context: str = ""
     project_name: str = ""  # User-defined project name
+
+    # SCP Selection (RAG-like injection)
+    available_scps: list[dict] = []  # [{scp_id, title, rating}, ...]
+    selected_scp_id: str = ""  # e.g., "SCP-049"
+    scp_facts: dict = {}  # Loaded facts.json data
 
     # Model selection
     gemini_model_options: list[str] = ["gemini-2.5-flash", "gemini-3-flash-preview", "gemini-3-pro-preview"]
@@ -140,6 +148,91 @@ class StoryScriptState(rx.State):
         """Set selected Gemini model"""
         self.selected_gemini_model = value
 
+    # SCP Selection Methods
+    def on_load(self):
+        """Called when page loads - load available SCPs"""
+        self.load_available_scps()
+
+    def load_available_scps(self):
+        """Scan assets/scp.db/*/facts.json, sorted by rating (descending)"""
+        if not SCP_DB_DIR.exists():
+            self.available_scps = []
+            return
+
+        scps = []
+        for scp_dir in SCP_DB_DIR.iterdir():
+            if scp_dir.is_dir() and scp_dir.name.startswith("SCP-"):
+                facts_file = scp_dir / "facts.json"
+                if facts_file.exists():
+                    try:
+                        with open(facts_file, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            scps.append({
+                                "scp_id": data.get("scp_id", scp_dir.name),
+                                "title": data.get("title", "Unknown"),
+                                "rating": data.get("rating", 0),
+                            })
+                    except Exception as e:
+                        print(f"Failed to load {facts_file}: {e}")
+
+        # Sort by rating (descending)
+        scps.sort(key=lambda x: x["rating"], reverse=True)
+        self.available_scps = scps
+
+        # Auto-select first if none selected
+        if scps and not self.selected_scp_id:
+            self.set_selected_scp(scps[0]["scp_id"])
+
+    def set_selected_scp(self, scp_id: str):
+        """Select an SCP and load its facts.json"""
+        self.selected_scp_id = scp_id
+
+        if not scp_id:
+            self.scp_facts = {}
+            self.story_title = ""
+            return
+
+        facts_file = SCP_DB_DIR / scp_id / "facts.json"
+        if facts_file.exists():
+            try:
+                with open(facts_file, "r", encoding="utf-8") as f:
+                    self.scp_facts = json.load(f)
+                # Auto-fill story title
+                title = self.scp_facts.get("title", "")
+                self.story_title = f"{scp_id}: {title}" if title else scp_id
+                # Auto-fill project name
+                self.project_name = scp_id.replace("-", "_")
+            except Exception as e:
+                print(f"Failed to load SCP facts: {e}")
+                self.scp_facts = {}
+        else:
+            self.scp_facts = {}
+
+    @rx.var
+    def scp_select_options(self) -> list[str]:
+        """Format SCP options for select dropdown"""
+        return [f"{s['scp_id']} - {s['title']} (★{s['rating']})" for s in self.available_scps]
+
+    @rx.var
+    def scp_select_value(self) -> str:
+        """Get current SCP select value"""
+        for s in self.available_scps:
+            if s["scp_id"] == self.selected_scp_id:
+                return f"{s['scp_id']} - {s['title']} (★{s['rating']})"
+        return ""
+
+    def handle_scp_select_change(self, value: str):
+        """Handle SCP select dropdown change"""
+        # Extract SCP ID from "SCP-049 - The Plague Doctor (★4500)"
+        if value and " - " in value:
+            scp_id = value.split(" - ")[0]
+            self.set_selected_scp(scp_id)
+
+    @rx.var
+    def has_scp_facts(self) -> bool:
+        """Check if SCP facts are loaded"""
+        return bool(self.scp_facts)
+
     def log(self, message: str):
         """Add log message"""
         import datetime
@@ -170,9 +263,11 @@ class StoryScriptState(rx.State):
             self.log(f"🎬 Starting Story-to-Script Pipeline")
             self.log(f"   Title: {self.story_title}")
             self.log(f"   Model: {self.selected_gemini_model}")
+            if self.selected_scp_id:
+                self.log(f"   SCP: {self.selected_scp_id} (RAG injection enabled)")
             self.log("=" * 60)
             yield
-            
+
             # Initialize generator
             workspace_dir = PARENT_DIR / "workspace"
 
@@ -200,7 +295,17 @@ class StoryScriptState(rx.State):
 
             # Override model if different from default
             generator.gemini_model = self.selected_gemini_model
-            
+
+            # Prepare SCP facts for RAG injection (convert to regular dict if needed)
+            scp_facts_dict = dict(self.scp_facts) if self.scp_facts else None
+
+            # Save SCP facts to project directory for image prompter
+            if scp_facts_dict:
+                scp_facts_path = generator.project_dir / "scp_facts.json"
+                with open(scp_facts_path, "w", encoding="utf-8") as f:
+                    json.dump(scp_facts_dict, f, indent=2, ensure_ascii=False)
+                self.log(f"   [RAG] Saved SCP facts to: {scp_facts_path}")
+
             # Define log callback
             def log_callback(message: str):
                 self.log(message)
@@ -224,6 +329,7 @@ class StoryScriptState(rx.State):
                 research = await generator.step1_research(
                     topic=self.story_title,
                     context=self.story_context,
+                    scp_facts=scp_facts_dict,
                     log_callback=log_callback
                 )
                 self.research_content = research.raw_content
@@ -249,6 +355,7 @@ class StoryScriptState(rx.State):
                 structure = await generator.step2_structure(
                     research=research,
                     target_duration_minutes=12,
+                    scp_facts=scp_facts_dict,
                     log_callback=log_callback
                 )
                 self.structure_content = structure.to_json()

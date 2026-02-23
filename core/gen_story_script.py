@@ -107,12 +107,13 @@ class StoryScriptPipeline:
         self,
         topic: str,
         context: str = "",
+        scp_facts: dict | None = None,
         log_callback: Callable[[str], None] | None = None
     ) -> ResearchPacket:
         """Step 1: 리서치 - 순수 자료 수집 (대본 X)
 
         Model: Gemini (웹 접근 강점)
-        입력: topic, context
+        입력: topic, context, scp_facts (optional RAG injection)
         출력: ResearchPacket (Markdown)
         """
         self.current_step = 1
@@ -120,7 +121,19 @@ class StoryScriptPipeline:
 
         try:
             prompt_template = self._load_prompt("01_research.md")
-            prompt = prompt_template.replace("{topic}", topic).replace("{context}", context or "없음")
+
+            # Build SCP fact sheet if provided
+            scp_fact_sheet = ""
+            if scp_facts:
+                self.log(f"    [RAG] Injecting SCP facts: {scp_facts.get('scp_id', 'Unknown')}", log_callback)
+                scp_fact_sheet = self._format_scp_fact_sheet(scp_facts)
+
+            prompt = (
+                prompt_template
+                .replace("{topic}", topic)
+                .replace("{context}", context or "없음")
+                .replace("{scp_fact_sheet}", scp_fact_sheet or "(No SCP fact sheet provided - use general research)")
+            )
 
             response = self.gemini_client.models.generate_content(
                 model=self.gemini_model,
@@ -159,12 +172,13 @@ class StoryScriptPipeline:
         self,
         research: ResearchPacket,
         target_duration_minutes: int = 12,
+        scp_facts: dict | None = None,
         log_callback: Callable[[str], None] | None = None
     ) -> SceneStructure:
         """Step 2: 구조 설계 - 씬 뼈대만 (문장 X)
 
         Model: DeepSeek Reasoner (추론 강점)
-        입력: ResearchPacket
+        입력: ResearchPacket, scp_facts (optional RAG injection for visual reference)
         출력: SceneStructure (JSON)
         """
         self.current_step = 2
@@ -172,10 +186,18 @@ class StoryScriptPipeline:
 
         try:
             prompt_template = self._load_prompt("02_structure.md")
+
+            # Build SCP visual reference if provided
+            scp_visual_reference = ""
+            if scp_facts:
+                self.log(f"    [RAG] Injecting SCP visual reference: {scp_facts.get('scp_id', 'Unknown')}", log_callback)
+                scp_visual_reference = self._format_scp_visual_reference(scp_facts)
+
             prompt = (
                 prompt_template
                 .replace("{research_packet}", research.raw_content)
                 .replace("{target_duration}", str(target_duration_minutes))
+                .replace("{scp_visual_reference}", scp_visual_reference or "(No SCP visual reference provided)")
             )
 
             if not self.deepseek_api_key:
@@ -518,6 +540,124 @@ class StoryScriptPipeline:
                 raise Exception(f"Qwen API connection error: {str(e)}")
 
     # ========== Utility Methods ==========
+
+    def _format_scp_fact_sheet(self, scp_facts: dict) -> str:
+        """Format SCP facts.json into a structured fact sheet for research prompt"""
+        lines = [
+            "## SCP Fact Sheet (GROUND TRUTH)",
+            "",
+            f"**SCP ID**: {scp_facts.get('scp_id', 'Unknown')}",
+            f"**Title**: {scp_facts.get('title', 'Unknown')}",
+            f"**Object Class**: {scp_facts.get('object_class', 'Unknown')}",
+            "",
+            "### Physical Description",
+            scp_facts.get('physical_description', 'N/A'),
+            "",
+            "### Anomalous Properties",
+        ]
+
+        for prop in scp_facts.get('anomalous_properties', []):
+            lines.append(f"- {prop}")
+
+        lines.extend([
+            "",
+            "### Containment Procedures",
+            scp_facts.get('containment_procedures', 'N/A'),
+            "",
+            "### Behavior and Nature",
+            scp_facts.get('behavior_and_nature', 'N/A'),
+            "",
+            "### Origin and Discovery",
+            scp_facts.get('origin_and_discovery', 'N/A'),
+            "",
+            "### Incidents",
+        ])
+
+        for incident in scp_facts.get('incidents', []):
+            lines.append(f"#### {incident.get('title', 'Incident')}")
+            lines.append(f"- Summary: {incident.get('summary', 'N/A')}")
+            lines.append(f"- Visual Description: {incident.get('visual_description', 'N/A')}")
+            lines.append("")
+
+        # Visual elements
+        visual = scp_facts.get('visual_elements', {})
+        lines.extend([
+            "### Visual Elements",
+            f"**Appearance**: {visual.get('appearance', 'N/A')}",
+            "",
+            "**Distinguishing Features**:",
+        ])
+
+        for feature in visual.get('distinguishing_features', []):
+            lines.append(f"- {feature}")
+
+        lines.extend([
+            "",
+            f"**Environment Setting**: {visual.get('environment_setting', 'N/A')}",
+            "",
+            "**Key Visual Moments**:",
+        ])
+
+        for moment in visual.get('key_visual_moments', []):
+            lines.append(f"- {moment}")
+
+        # Cross references
+        cross_refs = scp_facts.get('cross_references', [])
+        if cross_refs:
+            lines.extend([
+                "",
+                "### Cross References",
+            ])
+            for ref in cross_refs:
+                lines.append(f"- {ref}")
+
+        return "\n".join(lines)
+
+    def _format_scp_visual_reference(self, scp_facts: dict) -> str:
+        """Format SCP facts.json into visual reference for structure prompt (key_points ground truth)"""
+        visual = scp_facts.get('visual_elements', {})
+
+        lines = [
+            "## SCP Visual Reference (USE THIS FOR ALL VISUAL DESCRIPTIONS)",
+            "",
+            f"**SCP ID**: {scp_facts.get('scp_id', 'Unknown')}",
+            f"**Object Class**: {scp_facts.get('object_class', 'Unknown')}",
+            "",
+            "### Physical Description (EXACT WORDING TO USE)",
+            scp_facts.get('physical_description', 'N/A'),
+            "",
+            "### Visual Appearance (EXACT WORDING TO USE)",
+            visual.get('appearance', 'N/A'),
+            "",
+            "### Distinguishing Features (MUST INCLUDE IN KEY_POINTS)",
+        ]
+
+        for feature in visual.get('distinguishing_features', []):
+            lines.append(f"- {feature}")
+
+        lines.extend([
+            "",
+            "### Environment Setting",
+            visual.get('environment_setting', 'N/A'),
+            "",
+            "### Key Visual Moments (HIGH PRIORITY FOR SCENES)",
+        ])
+
+        for i, moment in enumerate(visual.get('key_visual_moments', []), 1):
+            lines.append(f"{i}. {moment}")
+
+        # Incidents with visual descriptions
+        incidents = scp_facts.get('incidents', [])
+        if incidents:
+            lines.extend([
+                "",
+                "### Incident Visual Descriptions (USE FOR INCIDENT SCENES)",
+            ])
+            for incident in incidents:
+                if incident.get('visual_description'):
+                    lines.append(f"**{incident.get('title', 'Incident')}**: {incident.get('visual_description')}")
+
+        return "\n".join(lines)
 
     def _parse_json_response(self, text: str) -> dict:
         """Parse JSON from model response"""

@@ -19,12 +19,23 @@ from google.genai import types
 class ImagePromptGenerator:
     """
     Generates image prompts for video scenes based on narration scripts.
+    Supports SCP facts injection for character consistency (Frozen Descriptor).
     """
 
-    def __init__(self, workspace_dir: Path | None = None):
+    def __init__(self, workspace_dir: Path | None = None, scp_facts: dict | None = None):
         self.base_dir = Path(__file__).resolve().parent.parent
         self.workspace_dir = workspace_dir or (self.base_dir / "workspace")
         self.prompts_dir = self.base_dir / "assets" / "prompts" / "image_prompt"
+
+        # SCP facts for character consistency
+        self.scp_facts = scp_facts
+        self._frozen_descriptor: str | None = None
+        self._entity_visual_identity: str | None = None
+
+        # Build frozen descriptor if SCP facts provided
+        if scp_facts:
+            self._frozen_descriptor = self._build_frozen_descriptor(scp_facts)
+            self._entity_visual_identity = self._build_entity_visual_identity(scp_facts)
 
         # Load prompt templates
         self._prompt_templates = {}
@@ -46,6 +57,87 @@ class ImagePromptGenerator:
         self.gemini_model = "gemini-2.0-flash"
         self.deepseek_model = "deepseek-reasoner"
         self.qwen_model = "qwen-plus"
+
+    def _build_frozen_descriptor(self, scp_facts: dict) -> str:
+        """Build a frozen character descriptor from SCP facts for image consistency.
+
+        This descriptor will be used VERBATIM in every prompt where the entity appears.
+        """
+        visual = scp_facts.get("visual_elements", {})
+
+        # Start with physical description
+        parts = []
+
+        # Height/build from physical_description
+        phys_desc = scp_facts.get("physical_description", "")
+        if phys_desc:
+            # Extract key visual attributes
+            parts.append(phys_desc.split(".")[0])  # First sentence usually has build
+
+        # Appearance from visual_elements
+        appearance = visual.get("appearance", "")
+        if appearance:
+            parts.append(appearance)
+
+        # Distinguishing features
+        features = visual.get("distinguishing_features", [])
+        if features:
+            parts.extend(features)
+
+        # Combine and clean
+        full_desc = ", ".join(parts)
+
+        # Convert to image-gen-friendly format (lowercase, remove narrative language)
+        full_desc = full_desc.lower()
+        full_desc = full_desc.replace("scp-", "the entity, SCP-")
+        full_desc = full_desc.replace("it ", "")
+        full_desc = full_desc.replace("its ", "")
+
+        return full_desc
+
+    def _build_entity_visual_identity(self, scp_facts: dict) -> str:
+        """Build entity visual identity section for prompt injection."""
+        visual = scp_facts.get("visual_elements", {})
+
+        lines = [
+            f"**SCP ID**: {scp_facts.get('scp_id', 'Unknown')}",
+            f"**Object Class**: {scp_facts.get('object_class', 'Unknown')}",
+            "",
+            "**Physical Description**:",
+            scp_facts.get("physical_description", "N/A"),
+            "",
+            "**Visual Appearance**:",
+            visual.get("appearance", "N/A"),
+            "",
+            "**Distinguishing Features**:",
+        ]
+
+        for feature in visual.get("distinguishing_features", []):
+            lines.append(f"- {feature}")
+
+        lines.extend([
+            "",
+            "**Environment Setting**:",
+            visual.get("environment_setting", "N/A"),
+        ])
+
+        return "\n".join(lines)
+
+    def set_scp_facts(self, scp_facts: dict):
+        """Set or update SCP facts and rebuild frozen descriptor."""
+        self.scp_facts = scp_facts
+        self._frozen_descriptor = self._build_frozen_descriptor(scp_facts)
+        self._entity_visual_identity = self._build_entity_visual_identity(scp_facts)
+
+    @property
+    def frozen_descriptor(self) -> str:
+        """Get the frozen character descriptor."""
+        return self._frozen_descriptor or "(No entity descriptor available)"
+
+    @property
+    def entity_visual_identity(self) -> str:
+        """Get the entity visual identity section."""
+        return self._entity_visual_identity or "(No entity visual identity available)"
 
     def _load_prompt(self, name: str) -> str:
         """Load prompt template from file with caching."""
@@ -197,6 +289,8 @@ class ImagePromptGenerator:
             synopsis=synopsis,
             emotional_beat=emotional_beat,
             previous_last_shot_context=previous_context,
+            entity_visual_identity=self.entity_visual_identity,
+            frozen_descriptor=self.frozen_descriptor,
         )
 
         try:
@@ -226,7 +320,7 @@ class ImagePromptGenerator:
                 "shot_number": 1, "role": "opening",
                 "camera_type": "wide",
                 "subject": synopsis[:200],
-                "lighting": "anime, vibrant",
+                "lighting": "cinematic, dramatic shadows",
                 "mood": emotional_beat,
                 "motion": "static",
             }
@@ -247,6 +341,7 @@ class ImagePromptGenerator:
         prompt = template.format(
             shot_json=shot_json,
             shot_number=shot_number,
+            frozen_descriptor=self.frozen_descriptor,
         )
 
         try:
@@ -270,9 +365,9 @@ class ImagePromptGenerator:
             self.log(f"    [!] Image prompt generation failed for shot {shot_number}: {e}", log_callback)
             return {
                 "shot_number": shot_number,
-                "prompt": f"{shot.get('subject', '')} {shot.get('camera_type', 'wide shot')}, {shot.get('lighting', 'anime lighting')}, {shot.get('mood', 'dramatic')}, anime style, high quality animation still, vibrant colors, cel shaded, detailed background, 16:9",
-                "negative_prompt": "photorealistic, realistic, 3d render, cgi, live action, text, watermark, blurry, low quality, distorted, deformed, ugly, jpeg artifacts",
-                "style_tags": ["anime", "animation", "vibrant"],
+                "prompt": f"{shot.get('subject', '')} {shot.get('camera_type', 'wide shot')}, {shot.get('lighting', 'cinematic lighting')}, {shot.get('mood', 'dramatic')}, cinematic still, dark horror photography, highly detailed, 8k, sharp focus, volumetric lighting, film grain, 16:9",
+                "negative_prompt": "cartoon, anime, bright colors, cheerful, blurry, low quality, deformed hands, extra fingers, watermark, text, signature, cropped",
+                "style_tags": ["horror", "cinematic", "dark"],
                 "recommended_aspect_ratio": "16:9",
             }
 
@@ -302,6 +397,7 @@ class ImagePromptGenerator:
             total_sub_scenes=total_sub_scenes,
             first_shot_prompt=opening_shot_prompt,
             last_shot_prompt=opening_shot_prompt,
+            frozen_descriptor=self.frozen_descriptor,
         )
 
         video_prompt = {"video_prompt": "", "camera_directions": [], "motion_type": "", "transition_style": ""}

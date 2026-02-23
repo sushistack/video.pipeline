@@ -18,6 +18,52 @@ def story_script_tab() -> rx.Component:
         rx.vstack(
             rx.heading("1️⃣ Story & Project Input", size="5", margin_bottom="2"),
 
+            # SCP Selection (RAG-like)
+            rx.vstack(
+                rx.hstack(
+                    rx.text("🔬 SCP Selection", weight="bold", size="2"),
+                    rx.badge("RAG", color_scheme="purple", variant="soft", size="1"),
+                    align_items="center",
+                    spacing="2",
+                ),
+                rx.select(
+                    StoryScriptState.scp_select_options,
+                    value=StoryScriptState.scp_select_value,
+                    on_change=StoryScriptState.handle_scp_select_change,
+                    placeholder="Select an SCP entity...",
+                    size="3",
+                    width="100%",
+                    disabled=StoryScriptState.is_running,
+                ),
+                rx.cond(
+                    StoryScriptState.has_scp_facts,
+                    rx.hstack(
+                        rx.badge(
+                            StoryScriptState.scp_facts.get("object_class", "Unknown"),
+                            color_scheme="amber",
+                            variant="soft",
+                        ),
+                        rx.text(
+                            f"facts.json loaded • Visual elements ready for injection",
+                            size="1",
+                            color_scheme="green",
+                        ),
+                        spacing="2",
+                    ),
+                    rx.text(
+                        "Select an SCP to auto-load facts for visual consistency",
+                        size="1",
+                        color_scheme="gray",
+                    ),
+                ),
+                width="100%",
+                spacing="2",
+                padding="12px",
+                background_color="rgba(139, 92, 246, 0.08)",
+                border_radius="8px",
+                border="1px solid rgba(139, 92, 246, 0.2)",
+            ),
+
             # Project Name
             rx.vstack(
                 rx.text("Project Name (Optional)", weight="bold", size="2"),

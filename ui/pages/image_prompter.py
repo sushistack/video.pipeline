@@ -291,14 +291,26 @@ def page() -> rx.Component:
                 placeholder="Select a project...",
                 disabled=ImagePrompterState.is_generating,
             ),
-            rx.text(
-                rx.cond(
-                    ImagePrompterState.available_projects.length() > 0,
-                    f"Found {ImagePrompterState.available_projects.length()} projects with scripts",
-                    "No projects found. Generate a script first in the Story->Script tab."
+            rx.hstack(
+                rx.text(
+                    rx.cond(
+                        ImagePrompterState.available_projects.length() > 0,
+                        f"Found {ImagePrompterState.available_projects.length()} projects with scripts",
+                        "No projects found. Generate a script first in the Story->Script tab."
+                    ),
+                    size="1",
+                    color_scheme="gray"
                 ),
-                size="1",
-                color_scheme="gray"
+                rx.cond(
+                    ImagePrompterState.has_scp_facts,
+                    rx.badge(
+                        "Frozen Descriptor Ready",
+                        color_scheme="purple",
+                        variant="soft",
+                        size="1",
+                    ),
+                ),
+                spacing="2",
             ),
             width="100%",
             align_items="start",
