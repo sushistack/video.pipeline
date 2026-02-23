@@ -2,7 +2,6 @@
 
 import os
 import json
-import asyncio
 import aiohttp
 from pathlib import Path
 from typing import Callable
@@ -25,7 +24,7 @@ class ImagePromptGenerator:
     def __init__(self, workspace_dir: Path | None = None):
         self.base_dir = Path(__file__).resolve().parent.parent
         self.workspace_dir = workspace_dir or (self.base_dir / "workspace")
-        self.prompts_dir = self.base_dir / "assets" / "prompts"
+        self.prompts_dir = self.base_dir / "assets" / "prompts" / "image_prompt"
 
         # Load prompt templates
         self._prompt_templates = {}
@@ -63,269 +62,6 @@ class ImagePromptGenerator:
         print(message)
         if callback:
             callback(message)
-
-    async def _generate_section_prompt(
-        self,
-        section: dict,
-        section_index: int,
-        total_sections: int,
-        previous_context: str = "",
-        log_callback: Callable[[str], None] | None = None
-    ) -> dict:
-        """
-        Generate 2 image prompts for a single section by identifying key visual elements from context.
-        Automatically extracts: character full body + what character is looking at/interacting with.
-        """
-        try:
-            # Build prompt context
-            section_title = section.get("title", "Unknown")
-            section_content = section.get("content", "")
-            section_duration = section.get("estimated_duration", 30)
-
-            # Determine section type for visual style
-            section_type = self._classify_section(section_index, total_sections)
-
-            # Build the prompt request
-            prompt_request = self._build_prompt_request(
-                section_title=section_title,
-                section_content=section_content,
-                section_type=section_type,
-                section_duration=section_duration,
-                previous_context=previous_context,
-                section_index=section_index,
-                total_sections=total_sections
-            )
-
-            # Call Gemini to generate 2 image prompts with CONTEXTUAL key points
-            contextual_prompt = self._load_prompt("image_prompt_contextual")
-            response = self.gemini_client.models.generate_content(
-                model=self.gemini_model,
-                contents=prompt_request + "\n\n" + contextual_prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.7,
-                    top_p=0.9,
-                    max_output_tokens=4096,
-                    response_mime_type="application/json",
-                )
-            )
-
-            # Parse response
-            prompt_json = self._parse_json_response(response.text or "")
-
-            # Handle both list and dict responses
-            if isinstance(prompt_json, list) and len(prompt_json) >= 2:
-                # Got 2 prompts as array - this is what we want!
-                prompts = prompt_json[:2]
-                self.log(f"    [+] Received 2 prompts from API (list format)", log_callback)
-            elif isinstance(prompt_json, list) and len(prompt_json) == 1:
-                # Got 1 prompt in list
-                prompts = [prompt_json[0], prompt_json[0]]
-                self.log(f"    [+] Received 1 prompt from API, duplicating", log_callback)
-            elif isinstance(prompt_json, dict) and prompt_json:
-                # Got single dict - create 2 variations
-                prompts = [prompt_json, prompt_json]
-                self.log(f"    [+] Received 1 prompt from API (dict format), duplicating", log_callback)
-            else:
-                # Empty or invalid response - use fallback
-                self.log(f"    [!] Warning: API returned empty/invalid response, using fallback", log_callback)
-                fallback = {"prompt": f"Anime style image for: {section_content[:100]}"}
-                prompts = [fallback, fallback]
-
-            # Add metadata for both prompts
-            prompt_data = {
-                "section_index": section_index,
-                "section_title": section_title,
-                "section_type": section_type,
-                "estimated_duration": section_duration,
-                "narration_text": section_content,
-                "image_prompt": prompts[0].get("prompt", "") if isinstance(prompts[0], dict) else str(prompts[0]) if prompts[0] else "",
-                "image_prompt_2": prompts[1].get("prompt", "") if isinstance(prompts[1], dict) else str(prompts[1]) if prompts[1] else "",
-                "negative_prompt": prompts[0].get("negative_prompt", "") if isinstance(prompts[0], dict) else "",
-                "style_reference": prompts[0].get("style_reference", "") if isinstance(prompts[0], dict) else "anime style, vibrant colors, cel shaded",
-                "continuity_notes": prompts[0].get("continuity_notes", "") if isinstance(prompts[0], dict) else "",
-                "suggested_aspect_ratio": prompts[0].get("aspect_ratio", "16:9") if isinstance(prompts[0], dict) else "16:9",
-                "suggested_camera": prompts[0].get("camera", "medium shot") if isinstance(prompts[0], dict) else "medium shot",
-                "suggested_lighting": prompts[0].get("lighting", "anime") if isinstance(prompts[0], dict) else "anime",
-                "priority_elements": prompts[0].get("priority_elements", []) if isinstance(prompts[0], dict) else [],
-            }
-
-            self.log(f"    [+] Generated 2 image prompts for '{section_title}'", log_callback)
-
-            return prompt_data
-
-        except Exception as e:
-            self.log(f"    [!] Failed to generate prompt: {e}", log_callback)
-            # Return fallback prompt
-            fallback_prompt = f"High quality anime style image related to: {section.get('content', '')[:200]}"
-            return {
-                "section_index": section_index,
-                "section_title": section.get("title", "Unknown"),
-                "section_type": self._classify_section(section_index, total_sections),
-                "estimated_duration": section.get("estimated_duration", 30),
-                "narration_text": section.get("content", ""),
-                "image_prompt": fallback_prompt,
-                "image_prompt_2": fallback_prompt + " (alternative angle)",
-                "negative_prompt": "photorealistic, realistic, 3d render, cgi, live action, text, watermark, blurry, low quality",
-                "style_reference": "anime style, vibrant colors, cel shaded",
-                "continuity_notes": "",
-                "suggested_aspect_ratio": "16:9",
-                "suggested_camera": "medium shot",
-                "suggested_lighting": "anime",
-                "priority_elements": [],
-            }
-    
-    def _build_prompt_request(
-        self,
-        section_title: str,
-        section_content: str,
-        section_type: str,
-        section_duration: int,
-        previous_context: str,
-        section_index: int,
-        total_sections: int
-    ) -> str:
-        """
-        Build the prompt request for Gemini API from template file.
-        """
-        template = self._load_prompt("image_prompt_base")
-        return template.format(
-            section_title=section_title,
-            section_type=section_type,
-            section_duration=section_duration,
-            section_index=section_index + 1,
-            total_sections=total_sections,
-            section_content=section_content,
-            previous_context=previous_context if previous_context else "First section."
-        )
-    
-    def _classify_section(self, section_index: int, total_sections: int) -> str:
-        """
-        Classify section type based on position in the narrative.
-        """
-        if section_index == 0:
-            return "opening_hook"
-        elif section_index == 1:
-            return "setup"
-        elif section_index == total_sections - 2:
-            return "climax"
-        elif section_index == total_sections - 1:
-            return "resolution"
-        else:
-            return "development"
-    
-    def _build_context(self, section: dict, prompt_data: dict) -> str:
-        """
-        Build context string for continuity to next section.
-        """
-        return f"""
-Previous Section: {section.get('title', 'Unknown')}
-- Key Visual Elements: {', '.join(prompt_data.get('priority_elements', [])[:3])}
-- Setting: {prompt_data.get('style_reference', 'N/A')}
-- Lighting: {prompt_data.get('suggested_lighting', 'N/A')}
-- Mood: {prompt_data.get('section_type', 'N/A')}
-"""
-
-    async def _generate_video_prompt(
-        self,
-        section: dict,
-        image_prompt_data: dict,
-        section_index: int,
-        total_sections: int,
-        previous_context: str = "",
-        log_callback: Callable[[str], None] | None = None
-    ) -> dict:
-        """
-        Generate video prompt with dynamic camera angles and scene descriptions.
-        """
-        image_prompt = image_prompt_data.get("image_prompt", "")
-        try:
-            section_title = section.get("title", "Unknown")
-            section_content = section.get("content", "")
-            section_type = image_prompt_data.get("section_type", "unknown")
-
-            # Build video prompt request from template
-            template = self._load_prompt("video_prompt")
-            video_prompt_request = template.format(
-                section_title=section_title,
-                section_content=section_content,
-                image_prompt=image_prompt,
-                section_index=section_index + 1,
-                total_sections=total_sections,
-                section_type=section_type
-            )
-
-            # Call Gemini API
-            response = self.gemini_client.models.generate_content(
-                model=self.gemini_model,
-                contents=video_prompt_request,
-                config=types.GenerateContentConfig(
-                    temperature=0.8,
-                    top_p=0.9,
-                    max_output_tokens=2048,
-                    response_mime_type="application/json",
-                )
-            )
-            
-            # Parse response
-            video_json = self._parse_json_response(response.text or "")
-            
-            # Ensure video_json is a dict, not a list
-            if isinstance(video_json, list):
-                self.log(f"    [!] Warning: Video API returned list instead of dict, using empty dict", log_callback)
-                video_json = {}
-            
-            self.log(f"    [+] Video prompt generated for '{section_title}'", log_callback)
-
-            return video_json
-            
-        except Exception as e:
-            self.log(f"    [!] Video prompt generation failed: {e}", log_callback)
-            # Return fallback
-            return {
-                "video_prompt": f"Dynamic cinematic video based on: {image_prompt[:200]}. Multiple camera angles, quick cuts, smooth transitions, professional cinematography.",
-                "camera_directions": ["wide shot", "medium shot", "close-up"],
-                "motion_type": "dynamic",
-                "transition_style": "smooth_cuts",
-                "video_duration": "5-10 seconds",
-                "frame_rate_suggestion": "24fps"
-            }
-
-    async def _generate_multi_angle_camera_prompt(
-        self,
-        section: dict,
-        image_prompt_data: dict,
-        section_index: int,
-        total_sections: int,
-        prompt_type: str = "subject",  # "subject" or "environment"
-        log_callback: Callable[[str], None] | None = None
-    ) -> str:
-        """
-        Generate a simple multi-angle camera prompt for 10-second video from single image.
-        Target: 300-500 characters with detailed camera movements.
-        """
-        image_prompt = image_prompt_data.get("image_prompt" if prompt_type == "subject" else "image_prompt_2", "")
-        try:
-            section_title = section.get("title", "Unknown")
-
-            # Load camera prompt template based on type
-            template_name = f"camera_prompt_{prompt_type}"
-            template = self._load_prompt(template_name)
-            camera_prompt = template.format(image_prompt=image_prompt[:200])
-            
-            # Ensure 300-500 characters (no truncation with ...)
-            if len(camera_prompt) < 300:
-                camera_prompt = camera_prompt + " " * (300 - len(camera_prompt))
-            # Don't truncate - keep full content even if over 500 chars
-            # Just ensure minimum 300 chars
-            
-            self.log(f"    [+] Multi-angle camera prompt generated for '{section_title}' ({prompt_type}, {len(camera_prompt)} chars)", log_callback)
-            
-            return camera_prompt
-            
-        except Exception as e:
-            self.log(f"    [!] Multi-angle camera prompt generation failed: {e}", log_callback)
-            fallback = f"MULTI-ANGLE CAMERA PROMPT ({prompt_type.upper()}, 10 sec)\n\nEXTREME CLOSE-UP → QUICK ZOOM OUT → RAPID PAN → LOW TO HIGH ANGLE → MEDIUM SHOT PUSH-IN\n\nHandheld shake. Quick zooms. Swift pans. Dutch angles. Dynamic movement.\n\nBase: {image_prompt[:150]}"
-            return fallback
 
     # ─────────────────────────────────────────────────────────────────────────
     # Multi-LLM API Helpers
@@ -455,7 +191,7 @@ Previous Section: {section.get('title', 'Unknown')}
                 context_lines.append(f"- Image prompt: {prev_img['prompt'][:300]}")
             previous_context = "\n".join(context_lines) + "\n"
 
-        template = self._load_prompt("shot_first_breakdown")
+        template = self._load_prompt("01_shot_first_breakdown")
         prompt = template.format(
             scene_number=scene_number,
             synopsis=synopsis,
@@ -507,7 +243,7 @@ Previous Section: {section.get('title', 'Unknown')}
         shot_number = shot.get("shot_number", 0)
         shot_json = json.dumps(shot, ensure_ascii=False, indent=2)
 
-        template = self._load_prompt("shot_to_image_prompt")
+        template = self._load_prompt("02_shot_to_image_prompt")
         prompt = template.format(
             shot_json=shot_json,
             shot_number=shot_number,
@@ -553,9 +289,8 @@ Previous Section: {section.get('title', 'Unknown')}
         if log_callback:
             log_callback(f"    [VIDEO] Generating sub-scene video prompt (Gemini)...")
 
-        # Load template from assets/prompts/shot_video_prompt.txt
-        prompt_file = Path(__file__).parent.parent / "assets" / "prompts" / "shot_video_prompt.txt"
-        template = prompt_file.read_text(encoding="utf-8")
+        # Load template from assets/prompts/image_prompt/03_shot_video.txt
+        template = self._load_prompt("03_shot_video")
 
         opening_shot_prompt = opening_shot.get("image_prompt", {}).get("prompt", "")
 

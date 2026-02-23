@@ -82,7 +82,7 @@ class CaptionGenerator:
         print(f"[*] CaptionGenerator initialized with {self.model_name}")
 
         # Load Prompts
-        self.prompts_dir = base_dir / "assets" / "prompts"
+        self.prompts_dir = base_dir / "assets" / "prompts" / "caption"
         self.prompts_dir.mkdir(parents=True, exist_ok=True)
 
 

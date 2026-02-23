@@ -82,7 +82,7 @@ class StoryScriptPipeline:
         self.qwen_model = "qwen3.5-plus"
 
         # Prompts directory
-        self.prompts_dir = self.base_dir / "assets" / "prompts"
+        self.prompts_dir = self.base_dir / "assets" / "prompts" / "story_script"
 
         # State
         self.current_step = 0
@@ -119,7 +119,7 @@ class StoryScriptPipeline:
         self.log(f"[-] Step 1/5: Research - Collecting facts for '{topic}'...", log_callback)
 
         try:
-            prompt_template = self._load_prompt("step1_research.md")
+            prompt_template = self._load_prompt("01_research.md")
             prompt = prompt_template.replace("{topic}", topic).replace("{context}", context or "없음")
 
             response = self.gemini_client.models.generate_content(
@@ -171,7 +171,7 @@ class StoryScriptPipeline:
         self.log("[-] Step 2/5: Structure - Designing scene skeleton...", log_callback)
 
         try:
-            prompt_template = self._load_prompt("step2_structure.md")
+            prompt_template = self._load_prompt("02_structure.md")
             prompt = (
                 prompt_template
                 .replace("{research_packet}", research.raw_content)
@@ -219,7 +219,7 @@ class StoryScriptPipeline:
         self.log("[-] Step 3/5: Writing - Drafting narration script...", log_callback)
 
         try:
-            prompt_template = self._load_prompt("step3_writing.md")
+            prompt_template = self._load_prompt("03_writing.md")
             prompt = prompt_template.replace("{scene_structure}", structure.to_json())
 
             if not self.dashscope_api_key:
@@ -263,7 +263,7 @@ class StoryScriptPipeline:
         self.log("[-] Step 4/5: Review - Critiquing and patching...", log_callback)
 
         try:
-            prompt_template = self._load_prompt("step4_review.md")
+            prompt_template = self._load_prompt("04_review.md")
             prompt = prompt_template.replace("{script}", script.to_json())
 
             review_json = await self._call_gemini_json(prompt)

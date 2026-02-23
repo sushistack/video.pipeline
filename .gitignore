@@ -46,3 +46,6 @@ workspace/
 
 assets/audios/**/*.txt
 tests/manual_audio_test
+
+# scp.db
+**/scp.db
