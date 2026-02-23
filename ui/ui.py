@@ -1,6 +1,6 @@
 """Video Pipeline - Multi-Page Application"""
 import reflex as rx
-from .pages import index, audio, scenario, subtitle, extract, review, project, image_prompter, image_generator, scene_detector
+from .pages import index, audio, scenario, extract, review, image_prompter, image_generator, scene_detector
 
 
 # Create the app
@@ -21,7 +21,5 @@ from .pages.image_generator import ImageGeneratorState
 workspace_path = Path(__file__).parent.parent / "workspace"
 workspace_path.mkdir(exist_ok=True) # Ensure it exists
 app._api.mount("/workspace", StaticFiles(directory=str(workspace_path)), name="workspace")
-app.add_page(subtitle.page, route="/subtitle", title="Video Pipeline | Subtitle", on_load=subtitle.SubtitleState.on_load)
-app.add_page(project.page, route="/project", title="Video Pipeline | Project", on_load=project.ProjectState.on_load)
 app.add_page(image_generator.page, route="/image-generator", title="Video Pipeline | Image Generator", on_load=ImageGeneratorState.on_load)
 app.add_page(scene_detector.page, route="/scene-detect", title="Video Pipeline | Scene Detector", on_load=scene_detector.SceneDetectorState.on_load)
