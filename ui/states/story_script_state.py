@@ -18,16 +18,11 @@ if str(UI_DIR) not in sys.path:
 from core.gen_story_script import StoryToScriptGenerator
 
 # SCP Database path
-SCP_DB_DIR = PARENT_DIR / "assets" / "scp.db"
+SCP_DB_DIR = Path("/mnt/data/raw")
 
 
 class StoryScriptState(rx.State):
     """State management for Story-to-Script Tab"""
-
-    # Input fields
-    story_title: str = ""
-    story_context: str = ""
-    project_name: str = ""  # User-defined project name
 
     # SCP Selection (RAG-like injection)
     available_scps: list[dict] = []  # [{scp_id, title, rating}, ...]
@@ -72,7 +67,7 @@ class StoryScriptState(rx.State):
     @rx.var
     def can_start(self) -> bool:
         """Can start pipeline"""
-        return bool(self.story_title.strip()) and not self.is_running
+        return bool(self.selected_scp_id) and not self.is_running
 
     @rx.var
     def progress_percentage(self) -> int:
@@ -130,19 +125,6 @@ class StoryScriptState(rx.State):
             return formatted.split("\n")
         except:
             return json_str.split("\n") if json_str else ["Invalid JSON"]
-    
-    # Setters
-    def set_story_title(self, value: str):
-        """Set story title"""
-        self.story_title = value
-
-    def set_story_context(self, value: str):
-        """Set story context"""
-        self.story_context = value
-
-    def set_project_name(self, value: str):
-        """Set project name"""
-        self.project_name = value
 
     def set_selected_gemini_model(self, value: str):
         """Set selected Gemini model"""
@@ -154,7 +136,7 @@ class StoryScriptState(rx.State):
         self.load_available_scps()
 
     def load_available_scps(self):
-        """Scan assets/scp.db/*/facts.json, sorted by rating (descending)"""
+        """Scan /mnt/data/*/facts.json, sorted by rating (descending)"""
         if not SCP_DB_DIR.exists():
             self.available_scps = []
             return
@@ -189,7 +171,6 @@ class StoryScriptState(rx.State):
 
         if not scp_id:
             self.scp_facts = {}
-            self.story_title = ""
             return
 
         facts_file = SCP_DB_DIR / scp_id / "facts.json"
@@ -197,11 +178,6 @@ class StoryScriptState(rx.State):
             try:
                 with open(facts_file, "r", encoding="utf-8") as f:
                     self.scp_facts = json.load(f)
-                # Auto-fill story title
-                title = self.scp_facts.get("title", "")
-                self.story_title = f"{scp_id}: {title}" if title else scp_id
-                # Auto-fill project name
-                self.project_name = scp_id.replace("-", "_")
             except Exception as e:
                 print(f"Failed to load SCP facts: {e}")
                 self.scp_facts = {}
@@ -261,27 +237,16 @@ class StoryScriptState(rx.State):
         try:
             self.log("=" * 60)
             self.log(f"🎬 Starting Story-to-Script Pipeline")
-            self.log(f"   Title: {self.story_title}")
+            self.log(f"   SCP: {self.selected_scp_id}")
             self.log(f"   Model: {self.selected_gemini_model}")
-            if self.selected_scp_id:
-                self.log(f"   SCP: {self.selected_scp_id} (RAG injection enabled)")
             self.log("=" * 60)
             yield
 
             # Initialize generator
             workspace_dir = PARENT_DIR / "workspace"
 
-            # Use user-defined project name or auto-generate
-            import re
-            if self.project_name.strip():
-                # Slugify user input
-                project_id = re.sub(r'[^a-zA-Z0-9가-힣_-]', '', self.project_name.strip())
-                project_id = project_id.replace(' ', '_').replace('-', '_')
-            else:
-                # Auto-generate with timestamp
-                import datetime
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                project_id = f"project_{timestamp}"
+            # Use SCP ID as project_id (e.g., "SCP-049" -> "SCP_049")
+            project_id = self.selected_scp_id.replace('-', '_')
 
             generator = StoryToScriptGenerator(
                 workspace_dir=workspace_dir,
@@ -317,18 +282,21 @@ class StoryScriptState(rx.State):
             self.current_step = 1
             yield
             research_path = scripts_path / "01_research_packet.md"
+            
+            # Get topic from SCP facts
+            topic = self.scp_facts.get("title", self.selected_scp_id)
+            
             if research_path.exists():
                 self.log(f"⏭️ Step 1/5: Research already exists, skipping...")
                 from core.models.script_models import ResearchPacket
                 research = ResearchPacket(
-                    topic=self.story_title,
+                    topic=topic,
                     raw_content=research_path.read_text(encoding="utf-8")
                 )
                 self.research_content = research.raw_content
             else:
                 research = await generator.step1_research(
-                    topic=self.story_title,
-                    context=self.story_context,
+                    topic=topic,
                     scp_facts=scp_facts_dict,
                     log_callback=log_callback
                 )

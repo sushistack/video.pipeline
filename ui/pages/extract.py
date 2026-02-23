@@ -178,7 +178,7 @@ def page() -> rx.Component:
                 rx.tabs.trigger("📖 Story → Script", value="story"),
                 rx.tabs.trigger("🎤 STT Subtitle Extraction", value="stt"),
             ),
-            rx.tabs.content(story_script_tab(), value="story"),
+            rx.tabs.content(story_script_tab(), value="story", on_mount=StoryScriptState.load_available_scps),
             rx.tabs.content(stt_extraction_tab(), value="stt"),
             default_value="story",
             width="100%",

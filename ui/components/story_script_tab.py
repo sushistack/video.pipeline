@@ -16,16 +16,10 @@ def story_script_tab() -> rx.Component:
     return rx.vstack(
         # Input Section
         rx.vstack(
-            rx.heading("1️⃣ Story & Project Input", size="5", margin_bottom="2"),
+            rx.heading("🔬 SCP Selection", size="5", margin_bottom="2"),
 
             # SCP Selection (RAG-like)
             rx.vstack(
-                rx.hstack(
-                    rx.text("🔬 SCP Selection", weight="bold", size="2"),
-                    rx.badge("RAG", color_scheme="purple", variant="soft", size="1"),
-                    align_items="center",
-                    spacing="2",
-                ),
                 rx.select(
                     StoryScriptState.scp_select_options,
                     value=StoryScriptState.scp_select_value,
@@ -44,7 +38,7 @@ def story_script_tab() -> rx.Component:
                             variant="soft",
                         ),
                         rx.text(
-                            f"facts.json loaded • Visual elements ready for injection",
+                            f"✓ facts.json loaded",
                             size="1",
                             color_scheme="green",
                         ),
@@ -55,61 +49,6 @@ def story_script_tab() -> rx.Component:
                         size="1",
                         color_scheme="gray",
                     ),
-                ),
-                width="100%",
-                spacing="2",
-                padding="12px",
-                background_color="rgba(139, 92, 246, 0.08)",
-                border_radius="8px",
-                border="1px solid rgba(139, 92, 246, 0.2)",
-            ),
-
-            # Project Name
-            rx.vstack(
-                rx.text("Project Name (Optional)", weight="bold", size="2"),
-                rx.input(
-                    placeholder="e.g., joseon_scientist, ai_future (auto-generated if empty)",
-                    value=StoryScriptState.project_name,
-                    on_change=StoryScriptState.set_project_name,
-                    size="3",
-                    width="100%",
-                    disabled=StoryScriptState.is_running,
-                ),
-                rx.text(
-                    "Project name will be auto-generated if left empty.",
-                    size="1",
-                    color_scheme="gray",
-                ),
-                width="100%",
-                spacing="2",
-            ),
-
-            # Story Title
-            rx.vstack(
-                rx.text("Story Title / Topic", weight="bold", size="2"),
-                rx.input(
-                    placeholder="e.g., The Story of a Joseon-era Scientist, The Future of AI, etc.",
-                    value=StoryScriptState.story_title,
-                    on_change=StoryScriptState.set_story_title,
-                    size="3",
-                    width="100%",
-                    disabled=StoryScriptState.is_running,
-                ),
-                width="100%",
-                spacing="2",
-            ),
-
-            # Context (Optional)
-            rx.vstack(
-                rx.text("Additional Context (Optional)", weight="bold", size="2"),
-                rx.text_area(
-                    placeholder="Enter additional information about the story, content you want to emphasize, etc.",
-                    value=StoryScriptState.story_context,
-                    on_change=StoryScriptState.set_story_context,
-                    size="3",
-                    width="100%",
-                    height="100px",
-                    disabled=StoryScriptState.is_running,
                 ),
                 width="100%",
                 spacing="2",
@@ -131,7 +70,7 @@ def story_script_tab() -> rx.Component:
             ),
 
             width="100%",
-            max_width="800px",
+            max_width="600px",
             spacing="4",
             padding="20px",
             background_color="rgba(255, 255, 255, 0.02)",
